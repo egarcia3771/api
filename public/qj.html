@@ -382,18 +382,18 @@ test@outlook.com----old_password----abc123-def-4567-8901-ghijklmnopqr----M.C554_
             elements.generateBtn.disabled = true;
             elements.generateBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> 生成中...';
 
-            // 解析所有行数据
-            const validItems = [];
             for (let idx = 0; idx < lines.length; idx++) {
                 const line = lines[idx].trim();
                 if (!line) continue;
 
+                // 检查是否为4个字段
                 const parts = line.split('----');
                 if (parts.length !== 4) {
                     errorLines.push(idx + 1);
                     continue;
                 }
 
+                // 提取原始数据（保留原始邮箱和原始密码，用于导出）
                 const [email, originalPassword, clientId, refreshToken] = parts.map(part => part.trim());
                 
                 if (!email || !originalPassword || !clientId || !refreshToken) {
@@ -401,56 +401,49 @@ test@outlook.com----old_password----abc123-def-4567-8901-ghijklmnopqr----M.C554_
                     continue;
                 }
 
-                validItems.push({ email, originalPassword, clientId, refreshToken });
-            }
-
-            // 并发生成短链接（每批20个）
-            const concurrentLimit = 20;
-            let completedCount = 0;
-            
-            const generateShortLink = async (item) => {
+                // 生成短链接
+                let shortUrl = null;
                 try {
+                    console.log(`正在为 ${email} 生成短链接...`);
                     const response = await fetch('/api/m', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
                         body: JSON.stringify({
-                            refresh_token: item.refreshToken,
-                            client_id: item.clientId,
-                            email: item.email
+                            refresh_token: refreshToken,
+                            client_id: clientId,
+                            email: email
                         })
                     });
                     
                     if (response.ok) {
                         const data = await response.json();
-                        return window.location.origin + data.shortUrl;
+                        shortUrl = window.location.origin + data.shortUrl;
+                        console.log(`✓ 短链接生成成功: ${shortUrl}`);
+                    } else {
+                        console.error(`短链接生成失败 (${response.status}):`, await response.text());
                     }
                 } catch (error) {
-                    console.error(`生成短链接失败 (${item.email}):`, error);
+                    console.error('生成短链接失败:', error);
                 }
-                return null;
-            };
 
-            for (let i = 0; i < validItems.length; i += concurrentLimit) {
-                const batch = validItems.slice(i, i + concurrentLimit);
-                const shortUrls = await Promise.all(batch.map(item => generateShortLink(item)));
-                
-                batch.forEach((item, index) => {
-                    const encodedClientId = encodeURIComponent(item.clientId);
-                    const encodedCustomPassword = encodeURIComponent(customPassword);
-                    const apiUrl = `${API_CONFIG.domain}?refresh_token=${item.refreshToken}&client_id=${encodedClientId}&email=${item.email}&mailbox=INBOX&response_type=html`;
-                    
-                    state.dataList.push({
-                        id: state.dataList.length + 1,
-                        email: item.email,
-                        originalPassword: item.originalPassword,
-                        clientId: item.clientId,
-                        refreshToken: item.refreshToken,
-                        apiUrl: apiUrl,
-                        shortUrl: shortUrls[index]
-                    });
-                    
-                    completedCount++;
-                    elements.generateBtn.innerHTML = `<i class="fa fa-spinner fa-spin mr-1"></i> 生成中 (${completedCount}/${validItems.length})`;
+                // 对参数进行URL编码（仅client_id和password，邮箱不编码）
+                const encodedClientId = encodeURIComponent(clientId);
+                const encodedCustomPassword = encodeURIComponent(customPassword);
+
+                // 拼接完整API URL（作为备用）
+                const apiUrl = `${API_CONFIG.domain}?refresh_token=${refreshToken}&client_id=${encodedClientId}&email=${email}&mailbox=INBOX&response_type=html`;
+
+                // 存储结果（保留原始邮箱、原始密码，用于导出）
+                state.dataList.push({
+                    id: state.dataList.length + 1,
+                    email: email, // 原始邮箱（未编码，用于导出）
+                    originalPassword: originalPassword, // 原始导入密码（用于导出）
+                    clientId: clientId,
+                    refreshToken: refreshToken,
+                    apiUrl: apiUrl, // 生成的API链接（邮箱未编码）
+                    shortUrl: shortUrl // 短链接
                 });
             }
 
