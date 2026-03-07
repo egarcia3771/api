@@ -1,13 +1,6 @@
 // 短链接API - 使用 Vercel Blob 持久化存储(完全永久)
 const crypto = require('crypto');
-let put, head;
-try {
-    const blobModule = require('@vercel/blob');
-    put = blobModule.put;
-    head = blobModule.head;
-} catch (error) {
-    console.warn('Vercel Blob 模块未安装，短链接功能将不可用');
-}
+const { put, head } = require('@vercel/blob');
 
 // 生成短ID (16位)
 function generateShortId() {
@@ -16,10 +9,6 @@ function generateShortId() {
 
 // 创建短链接 - 使用 Vercel Blob 永久存储
 async function createShortLink(params) {
-    if (!put) {
-        throw new Error('Vercel Blob 未配置，无法创建短链接。请在 Vercel 项目中启用 Blob 存储。');
-    }
-    
     const shortId = generateShortId();
     const linkData = {
         params,
@@ -27,62 +16,40 @@ async function createShortLink(params) {
         accessCount: 0
     };
     
-    try {
-        // 存储到 Vercel Blob (永久保存)
-        const blob = await put(`links/${shortId}.json`, JSON.stringify(linkData), {
-            access: 'public',
-            addRandomSuffix: false
-        });
-        
-        console.log('短链接已创建:', shortId, 'Blob URL:', blob.url);
-        
-        // 验证是否真正写入成功
-        if (!blob || !blob.url) {
-            throw new Error('Blob 写入返回空结果');
-        }
-        
-        return shortId;
-    } catch (error) {
-        console.error('创建短链接失败:', error);
-        throw new Error(`无法保存短链接: ${error.message}`);
-    }
+    // 存储到 Vercel Blob (永久保存)
+    const blob = await put(`links/${shortId}.json`, JSON.stringify(linkData), {
+        access: 'public',
+        addRandomSuffix: false
+    });
+    
+    console.log('短链接已创建:', shortId, blob.url);
+    
+    return shortId;
 }
 
 // 获取短链接信息 - 从 Vercel Blob 读取
 async function getShortLink(shortId) {
-    if (!head || !put) {
-        console.error('Vercel Blob 未配置');
-        return null;
-    }
-    
     try {
         // 检查文件是否存在
         const blobInfo = await head(`links/${shortId}.json`);
         
         if (!blobInfo) {
-            console.log('短链接不存在:', shortId);
             return null;
         }
-        
-        console.log('找到短链接 Blob:', blobInfo.url);
         
         // 读取文件内容
         const response = await fetch(blobInfo.url);
-        if (!response.ok) {
-            console.error('读取 Blob 失败:', response.status);
-            return null;
-        }
-        
         const link = await response.json();
         
-        // 更新访问计数（异步，不阻塞响应）
+        // 更新访问计数
         link.accessCount++;
         link.lastAccessAt = Date.now();
         
-        put(`links/${shortId}.json`, JSON.stringify(link), {
+        // 保存更新后的数据
+        await put(`links/${shortId}.json`, JSON.stringify(link), {
             access: 'public',
             addRandomSuffix: false
-        }).catch(err => console.error('更新访问计数失败:', err));
+        });
         
         return link;
     } catch (error) {
@@ -142,7 +109,6 @@ module.exports = async (req, res) => {
             console.error('创建短链接失败:', error);
             return res.status(500).json({
                 error: error.message,
-                hint: 'Vercel Blob 可能未配置。请在 Vercel 项目设置中启用 Blob 存储，或检查 BLOB_READ_WRITE_TOKEN 环境变量。',
                 stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
             });
         }
