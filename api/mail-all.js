@@ -145,7 +145,16 @@ async function graph_api(refresh_token, client_id) {
     try {
         const data = JSON.parse(responseText);
 
-        if (data.scope.indexOf('https://graph.microsoft.com/Mail.ReadWrite') != -1) {
+        // 检查是否包含任何 Graph API 邮件权限
+        const hasGraphPermission = data.scope && (
+            data.scope.indexOf('https://graph.microsoft.com/Mail.ReadWrite') != -1 ||
+            data.scope.indexOf('https://graph.microsoft.com/Mail.Read') != -1 ||
+            data.scope.indexOf('https://graph.microsoft.com/.default') != -1 ||
+            data.scope.indexOf('Mail.ReadWrite') != -1 ||
+            data.scope.indexOf('Mail.Read') != -1
+        );
+
+        if (hasGraphPermission) {
             return {
                 access_token: data.access_token,
                 status: true
@@ -201,14 +210,7 @@ async function get_emails(access_token, mailbox) {
 }
 
 module.exports = async (req, res) => {
-    const { password } = req.method === 'GET' ? req.query : req.body;
-    const expectedPassword = process.env.PASSWORD;
-
-    if (password !== expectedPassword && expectedPassword) {
-        return res.status(401).json({
-            error: 'Authentication failed. Please provide valid credentials or contact administrator for access. Refer to API documentation for deployment details.'
-        });
-    }
+    // 密码验证已移除
 
     // 新增：获取 response_type 参数（默认 json）
     const params = req.method === 'GET' ? req.query : req.body;
@@ -306,19 +308,26 @@ module.exports = async (req, res) => {
             }
         });
 
+        let hasError = false;
+
         imap.once('error', (err) => {
             console.error('IMAP error:', err);
-            res.status(500).json({ error: err.message });
+            hasError = true;
+            if (!res.headersSent) {
+                res.status(500).json({ error: err.message });
+            }
         });
 
         imap.once('end', () => {
             console.log('IMAP connection ended');
-            // IMAP 流程支持 HTML/JSON 响应
-            if (response_type === 'html') {
-                const htmlResponse = generateEmailsHtml(emailList);
-                res.status(200).send(htmlResponse);
-            } else {
-                res.status(200).json(emailList);
+            if (!hasError && !res.headersSent) {
+                // IMAP 流程支持 HTML/JSON 响应
+                if (response_type === 'html') {
+                    const htmlResponse = generateEmailsHtml(emailList);
+                    res.status(200).send(htmlResponse);
+                } else {
+                    res.status(200).json(emailList);
+                }
             }
         });
 

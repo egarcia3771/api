@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微软令牌刷新工具 - Vercel代理版</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background-color: #fff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        .tab-container {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 30px;
+        }
+        .tab-btn {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+            width: 50%;
+        }
+        .tab-btn.active {
+            color: #007bff;
+            border-bottom: 3px solid #007bff;
+        }
+        .tab-btn:hover:not(.active) {
+            color: #333;
+            background-color: #f5f7fa;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .form-group {
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .form-hint {
+            font-size: 14px;
+            color: #888;
+            margin-top: 4px;
+            display: block;
+        }
+        input[type="text"],
+        input[type="email"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+        textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+            min-height: 200px;
+            resize: vertical;
+            font-family: monospace;
+        }
+        input:focus, textarea:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+        .format-hint {
+            background-color: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 8px;
+            font-size: 14px;
+            color: #666;
+            border: 1px solid #e9ecef;
+        }
+        .format-hint strong {
+            color: #007bff;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .btn-group button {
+            width: 50%;
+        }
+        .download-btn {
+            background-color: #28a745;
+        }
+        .download-btn:hover {
+            background-color: #218838;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 600;
+            display: none;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        .status.loading {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+        .progress {
+            margin-top: 15px;
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress.active {
+            display: block;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #007bff;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .result {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            display: none;
+        }
+        .result h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 20px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .result-count {
+            font-size: 14px;
+            color: #666;
+            font-weight: normal;
+        }
+        .error-tip {
+            background-color: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        pre {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 14px;
+            line-height: 1.6;
+            max-height: 400px;
+        }
+        .pre-html {
+            background-color: #fafafa;
+            color: #333;
+            border: 1px solid #ddd;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .copy-btn {
+            margin-top: 10px;
+            padding: 8px 12px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            width: auto;
+        }
+        .copy-btn:hover {
+            background-color: #218838;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        .copy-toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .copy-toast.show {
+            opacity: 1;
+        }
+        @media (max-width: 768px) {
+            .btn-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .btn-group button {
+                width: 100%;
+            }
+            .tab-btn {
+                font-size: 16px;
+                padding: 10px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>微软令牌刷新工具 - Vercel代理版</h1>
+
+        <!-- 模式切换标签 -->
+        <div class="tab-container">
+            <button class="tab-btn active" data-tab="single">单条提交</button>
+            <button class="tab-btn" data-tab="batch">批量提交</button>
+        </div>
+
+        <!-- 单条提交内容（新增redirect_uri输入框） -->
+        <div class="tab-content active" id="singleTab">
+            <form id="singleForm">
+                <div class="form-group">
+                    <label for="refresh_token">Refresh Token:</label>
+                    <input type="text" id="refresh_token" name="refresh_token" placeholder="请输入有效的 refresh_token" required value="M.C557_SN1.0.U.-CmSJ1JR0W2LQSbbHMqzbC1Gf533uTfJCRcFwxVajL!5DTrpi0AmUHLOct5t!!VD8bzA!*zytqHUjdctwBJ9NgGAkSKdJkeZlI6vcwOklH*38KwCIyF6pn61RfaXk4z3l1Nq6qb!ABFV15cRW1GZdR7ioito1WZlwEZLbyaCGrddRlbxaz0UAw54Y3pcWk9K1tq3i5NSsCr83W4B1*2p06WyZMXQWfEIZTLC*skNgKY1etjoFrS0rYa5eDSYq60q*4Ja2lZ7wJ7MnAYR5pLo9Zu3As31K!1TItg3A1SAqcy7AWNbabsD3DFOkye4XfAZGf3PVVmHovNyv8OVv9vAMOHmw9ifZo2IdcMJ0*Nb7SUTqIRaxMNfN7nT5w9v79Xlmo2vLCJxMaJK!NKjcnaoXWww">
+                    <span class="form-hint">必填：微软账号的有效 refresh_token（过期会提示重新授权）</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="client_id">Client ID:</label>
+                    <input type="text" id="client_id" name="client_id" placeholder="请输入应用的 client_id" required value="dbc8e03a-b00c-46bd-ae65-b683e7707cb0">
+                    <span class="form-hint">必填：Azure 应用注册的 Client ID（需配置为 SPA 类型）</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="redirect_uri">重定向 URI（必需）:</label>
+                    <input type="text" id="redirect_uri" name="redirect_uri" placeholder="请输入 Azure 配置的 redirect_uri" required value="https://你的-vercel域名.vercel.app">
+                    <span class="form-hint">必填：需与 Azure 应用注册中「单页应用」的 redirect_uri 完全一致（替换为你的 Vercel 域名）</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">标识邮箱（用于区分）:</label>
+                    <input type="email" id="email" name="email" placeholder="请输入用于标识的邮箱" required value="BradleyRamsey7873@outlook.com">
+                    <span class="form-hint">必填：仅用于标识和结果区分，无需与微软账号一致</span>
+                </div>
+
+                <button type="submit" id="singleSubmitBtn">刷新令牌</button>
+            </form>
+        </div>
+
+        <!-- 批量提交内容（调整为4个字段） -->
+        <div class="tab-content" id="batchTab">
+            <div class="form-group">
+                <label for="batchData">批量数据（每行一条，字段用逗号分隔）:</label>
+                <textarea id="batchData" placeholder="格式：refresh_token,client_id,redirect_uri,标识邮箱&#10;示例：&#10;M.C557_SN1...,dbc8e03a...,https://你的-vercel域名.vercel.app,test1@outlook.com&#10;M.C557_SN2...,dbc8e03a...,https://你的-vercel域名.vercel.app,test2@outlook.com&#10;注：字段顺序不可改变，逗号为英文逗号，空行会自动忽略"></textarea>
+                <div class="format-hint">
+                    <strong>格式说明：</strong>每行包含一条数据，4个字段用英文逗号分隔，顺序为：refresh_token,client_id,redirect_uri,标识邮箱<br>
+                    <strong>示例：</strong>M.C557_SN1...,dbc8e03a-b00c...,https://你的-vercel域名.vercel.app,test@outlook.com<br>
+                    <strong>注意：</strong>1. redirect_uri 需与 Azure 配置一致；2. 无需密码；3. 字段不可缺省；4. 建议先测试单条数据
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button id="batchSubmitBtn">批量刷新</button>
+                <button id="clearBatchBtn" style="background-color: #dc3545;">清空内容</button>
+            </div>
+
+            <!-- 批量进度条 -->
+            <div class="progress" id="batchProgress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+
+        <!-- 状态提示 -->
+        <div id="statusMessage" class="status"></div>
+
+        <!-- 结果展示区 -->
+        <div id="resultContainer" class="result">
+            <h3>
+                刷新结果
+                <span class="result-count" id="resultCount"></span>
+            </h3>
+            <div id="errorTipContainer" class="error-tip" style="display: none;"></div>
+            <pre id="resultDisplay"></pre>
+            <div style="display: flex; gap: 10px;">
+                <button class="copy-btn" id="copyResultBtn">复制结果</button>
+                <button class="copy-btn download-btn" id="downloadTxtBtn">下载TXT文件</button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>代理接口：/api/ms-token-proxy | 无跨域问题，基于Vercel代理转发微软官方接口</p>
+        </div>
+    </div>
+
+    <div class="copy-toast" id="copyToast">操作成功！</div>
+
+    <script>
+        // ===================== 核心配置项 =====================
+        const CONFIG = {
+            PROXY_API_URL: '/api/ms-token-proxy', // Vercel代理接口（相对路径，同域）
+            TOKEN_EXPIRE_BUFFER: 300, // 令牌过期缓冲时间（5分钟）
+            REFRESH_TOKEN_VALIDITY_DAYS: 90, // 刷新令牌有效期（90天）
+            REFRESH_RETRY_COUNT: 1, // 重试次数（1次足够）
+            REQUEST_TIMEOUT: 30000 // 请求超时时间（30秒）
+        };
+
+        // ===================== 工具函数 =====================
+        function fetchWithTimeout(url, options = {}) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
+            
+            return fetch(url, { ...options, signal: controller.signal })
+                .finally(() => clearTimeout(timeoutId))
+                .catch(error => {
+                    if (error.name === 'AbortError') {
+                        throw new Error(`请求超时（${CONFIG.REQUEST_TIMEOUT / 1000}秒）`);
+                    }
+                    throw error;
+                });
+        }
+
+        const cacheTool = {
+            cache: new Map(),
+            async set(key, value) {
+                this.cache.set(key, value);
+            },
+            async get(key) {
+                return this.cache.get(key);
+            },
+            async clear() {
+                this.cache.clear();
+            }
+        };
+
+        // ===================== 核心刷新函数（调用代理接口） =====================
+        async function refreshAccessToken(refresh_token, client_id, redirect_uri, email, retryCount = 0) {
+            try {
+                // 调用Vercel代理接口（同域，无跨域）
+                const response = await fetchWithTimeout(CONFIG.PROXY_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }, // 前端→代理用JSON格式
+                    body: JSON.stringify({
+                        refresh_token,
+                        client_id,
+                        redirect_uri // 传给代理，再转发给微软
+                    })
+                });
+
+                const responseData = await response.json();
+
+                // 处理代理返回的错误
+                if (!response.ok || !responseData.success) {
+                    const errorMsg = responseData.errorMessage || responseData.message || '刷新失败';
+                    // 微软常见错误提示
+                    if (errorMsg.includes('AADSTS90023')) {
+                        throw new Error(`跨域配置错误：${errorMsg}\n解决方案：1. Azure应用改为SPA类型；2. redirect_uri与Vercel域名一致`);
+                    } else if (errorMsg.includes('AADSTS70008')) {
+                        throw new Error(`[401] refresh_token已过期：${errorMsg}\n解决方案：重新授权获取新token`);
+                    } else if (errorMsg.includes('AADSTS90014')) {
+                        throw new Error(`[400] 参数错误：${errorMsg}\n解决方案：检查client_id或redirect_uri`);
+                    } else {
+                        throw new Error(`[${response.status}] ${errorMsg}`);
+                    }
+                }
+
+                const microsoftData = responseData.data;
+                if (!microsoftData.access_token) {
+                    throw new Error("刷新失败：微软接口未返回有效access_token");
+                }
+
+                // 处理令牌数据
+                const newRefreshToken = microsoftData.refresh_token || refresh_token;
+                const isTokenUpdated = microsoftData.refresh_token !== undefined;
+                const expireTime = Date.now() + (microsoftData.expires_in * 1000) - (CONFIG.TOKEN_EXPIRE_BUFFER * 1000);
+                
+                const tokenData = {
+                    access_token: microsoftData.access_token,
+                    expires_in: microsoftData.expires_in,
+                    expireTime: expireTime,
+                    refresh_token: newRefreshToken,
+                    client_id: client_id,
+                    redirect_uri: redirect_uri,
+                    scope: microsoftData.scope || 'https://graph.microsoft.com/.default offline_access',
+                    token_type: microsoftData.token_type || 'Bearer',
+                    refreshTokenExpireTime: Date.now() + (CONFIG.REFRESH_TOKEN_VALIDITY_DAYS * 24 * 60 * 60 * 1000)
+                };
+
+                await cacheTool.set(email, tokenData);
+                console.log(`【刷新成功】邮箱：${email}, 有效期: ${Math.floor(microsoftData.expires_in / 60)}分钟`);
+                return tokenData;
+            } catch (error) {
+                // 仅对网络波动/超时重试
+                if (retryCount < CONFIG.REFRESH_RETRY_COUNT && error.message.includes('超时') && !error.message.includes('401') && !error.message.includes('400')) {
+                    const delay = 1000 * Math.pow(2, retryCount);
+                    console.log(`【重试第 ${retryCount + 1} 次】`, error.message);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return refreshAccessToken(refresh_token, client_id, redirect_uri, email, retryCount + 1);
+                }
+
+                const finalError = new Error(`刷新失败（已重试 ${retryCount} 次）: ${error.message}`);
+                console.error(finalError.message);
+                throw finalError;
+            }
+        }
+
+        // ===================== 页面交互逻辑 =====================
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const singleForm = document.getElementById('singleForm');
+        const batchSubmitBtn = document.getElementById('batchSubmitBtn');
+        const clearBatchBtn = document.getElementById('clearBatchBtn');
+        const batchData = document.getElementById('batchData');
+        const statusMessage = document.getElementById('statusMessage');
+        const resultContainer = document.getElementById('resultContainer');
+        const resultDisplay = document.getElementById('resultDisplay');
+        const resultCount = document.getElementById('resultCount');
+        const copyResultBtn = document.getElementById('copyResultBtn');
+        const downloadTxtBtn = document.getElementById('downloadTxtBtn');
+        const copyToast = document.getElementById('copyToast');
+        const batchProgress = document.getElementById('batchProgress');
+        const progressBar = document.getElementById('progressBar');
+        const errorTipContainer = document.getElementById('errorTipContainer');
+        let batchResults = [];
+
+        // 标签切换
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabId = btn.getAttribute('data-tab');
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(`${tabId}Tab`).classList.add('active');
+            });
+        });
+
+        // 单条提交
+        singleForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = e.submitter;
+
+            const formData = {
+                refresh_token: document.getElementById('refresh_token').value.trim(),
+                client_id: document.getElementById('client_id').value.trim(),
+                redirect_uri: document.getElementById('redirect_uri').value.trim(),
+                email: document.getElementById('email').value.trim()
+            };
+
+            // 校验redirect_uri格式
+            try {
+                new URL(formData.redirect_uri);
+            } catch (err) {
+                setStatus('error', 'redirect_uri格式错误！请输入完整HTTPS地址（如https://xxx.vercel.app）');
+                return;
+            }
+
+            try {
+                setStatus('loading', '正在通过代理刷新令牌，请稍候...');
+                submitBtn.disabled = true;
+                resultContainer.style.display = 'none';
+                errorTipContainer.style.display = 'none';
+
+                const tokenData = await refreshAccessToken(
+                    formData.refresh_token,
+                    formData.client_id,
+                    formData.redirect_uri,
+                    formData.email
+                );
+
+                batchResults = [{
+                    lineNumber: 'N/A',
+                    email: formData.email,
+                    success: true,
+                    result: tokenData
+                }];
+
+                setStatus('success', '令牌刷新成功！');
+                displayResult(batchResults);
+
+            } catch (error) {
+                const errorMsg = error.message;
+                setStatus('error', errorMsg);
+                
+                const errorResult = {
+                    lineNumber: 'N/A',
+                    email: formData.email,
+                    success: false,
+                    error: errorMsg,
+                    request: formData
+                };
+                batchResults = [errorResult];
+                displayResult(batchResults);
+                
+                // 针对性提示
+                if (errorMsg.includes('[401]')) {
+                    showErrorTip('⚠️ refresh_token已过期！请重新授权获取新token');
+                } else if (errorMsg.includes('[400]')) {
+                    showErrorTip('⚠️ 参数错误！请检查client_id或redirect_uri是否与Azure配置一致');
+                } else if (errorMsg.includes('超时')) {
+                    showErrorTip('⚠️ 网络超时！请检查网络连接或稍后重试');
+                }
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        // 批量提交
+        batchSubmitBtn.addEventListener('click', async () => {
+            const data = batchData.value.trim();
+            if (!data) {
+                setStatus('error', '请输入批量数据！');
+                return;
+            }
+
+            const lines = data.split('\n').filter(line => line.trim() !== '');
+            const batchDataList = [];
+
+            // 解析批量数据（4个字段）
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                const fields = line.split(',').map(field => field.trim());
+                
+                if (fields.length !== 4) {
+                    setStatus('error', `第 ${i+1} 行格式错误：需包含4个字段（refresh_token,client_id,redirect_uri,标识邮箱）`);
+                    return;
+                }
+
+                // 校验redirect_uri格式
+                try {
+                    new URL(fields[2]);
+                } catch (err) {
+                    setStatus('error', `第 ${i+1} 行redirect_uri格式错误！请输入完整HTTPS地址`);
+                    return;
+                }
+
+                batchDataList.push({
+                    refresh_token: fields[0],
+                    client_id: fields[1],
+                    redirect_uri: fields[2],
+                    email: fields[3],
+                    lineNumber: i + 1
+                });
+            }
+
+            if (batchDataList.length === 0) {
+                setStatus('error', '未识别到有效数据！');
+                return;
+            }
+
+            // 初始化批量处理
+            batchResults = [];
+            batchSubmitBtn.disabled = true;
+            clearBatchBtn.disabled = true;
+            setStatus('loading', `正在批量刷新（共 ${batchDataList.length} 条）...`);
+            batchProgress.classList.add('active');
+            progressBar.style.width = '0%';
+            resultContainer.style.display = 'none';
+            errorTipContainer.style.display = 'none';
+
+            try {
+                let hasExpiredToken = false;
+                let hasParamError = false;
+
+                // 逐条处理
+                for (let i = 0; i < batchDataList.length; i++) {
+                    const item = batchDataList[i];
+                    const progress = Math.round(((i + 1) / batchDataList.length) * 100);
+                    progressBar.style.width = `${progress}%`;
+                    setStatus('loading', `正在处理第 ${i+1}/${batchDataList.length} 条（邮箱：${item.email}）...`);
+
+                    try {
+                        const tokenData = await refreshAccessToken(
+                            item.refresh_token,
+                            item.client_id,
+                            item.redirect_uri,
+                            item.email
+                        );
+
+                        batchResults.push({
+                            lineNumber: item.lineNumber,
+                            email: item.email,
+                            success: true,
+                            result: tokenData
+                        });
+
+                    } catch (error) {
+                        batchResults.push({
+                            lineNumber: item.lineNumber,
+                            email: item.email,
+                            success: false,
+                            error: error.message,
+                            request: item
+                        });
+
+                        if (error.message.includes('[401]')) hasExpiredToken = true;
+                        if (error.message.includes('[400]')) hasParamError = true;
+                    }
+                }
+
+                // 统计结果
+                const successCount = batchResults.filter(item => item.success).length;
+                const failCount = batchResults.length - successCount;
+
+                setStatus('success', `批量刷新完成！成功：${successCount} 条，失败：${failCount} 条`);
+                displayResult(batchResults);
+
+                // 汇总提示
+                let tip = '';
+                if (hasExpiredToken) tip += '⚠️ 部分refresh_token已过期（需重新授权）；';
+                if (hasParamError) tip += '⚠️ 部分参数错误（检查client_id/redirect_uri）；';
+                if (tip) showErrorTip(tip);
+
+            } catch (error) {
+                setStatus('error', `批量处理异常：${error.message}`);
+            } finally {
+                batchSubmitBtn.disabled = false;
+                clearBatchBtn.disabled = false;
+                progressBar.style.width = '100%';
+            }
+        });
+
+        // 清空批量输入
+        clearBatchBtn.addEventListener('click', () => {
+            batchData.value = '';
+            setStatus('', '');
+            errorTipContainer.style.display = 'none';
+        });
+
+        // 复制结果
+        copyResultBtn.addEventListener('click', () => {
+            const text = resultDisplay.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('复制成功！');
+            }).catch(err => {
+                setStatus('error', `复制失败：${err.message}`);
+            });
+        });
+
+        // 下载TXT
+        downloadTxtBtn.addEventListener('click', () => {
+            if (batchResults.length === 0) {
+                setStatus('error', '暂无结果可下载！');
+                return;
+            }
+
+            let txtContent = `微软令牌刷新结果（Vercel代理版） - ${new Date().toLocaleString()}\n`;
+            txtContent += `========================================\n`;
+            txtContent += `代理接口：${window.location.origin}${CONFIG.PROXY_API_URL}\n`;
+            txtContent += `总条数：${batchResults.length}\n`;
+            txtContent += `成功条数：${batchResults.filter(item => item.success).length}\n`;
+            txtContent += `失败条数：${batchResults.filter(item => !item.success).length}\n`;
+            txtContent += `========================================\n\n`;
+
+            batchResults.forEach((item, index) => {
+                txtContent += `【第 ${index + 1} 条】\n`;
+                txtContent += `行号：${item.lineNumber || 'N/A'}\n`;
+                txtContent += `标识邮箱：${item.email || 'N/A'}\n`;
+                txtContent += `状态：${item.success ? '成功' : '失败'}\n`;
+                
+                if (item.success) {
+                    txtContent += `access_token：${item.result.access_token}\n`;
+                    txtContent += `新refresh_token：${item.result.refresh_token}\n`;
+                    txtContent += `client_id：${item.result.client_id}\n`;
+                    txtContent += `redirect_uri：${item.result.redirect_uri}\n`;
+                    txtContent += `token_type：${item.result.token_type}\n`;
+                    txtContent += `有效期：${Math.floor(item.result.expires_in / 60)} 分钟\n`;
+                    txtContent += `过期时间：${new Date(item.result.expireTime).toLocaleString()}\n`;
+                    txtContent += `refresh_token过期时间：${new Date(item.result.refreshTokenExpireTime).toLocaleString()}\n`;
+                } else {
+                    txtContent += `错误信息：${item.error || '无'}\n`;
+                    if (item.request) {
+                        txtContent += `请求参数：\n`;
+                        txtContent += `  refresh_token：${item.request.refresh_token}\n`;
+                        txtContent += `  client_id：${item.request.client_id}\n`;
+                        txtContent += `  redirect_uri：${item.request.redirect_uri || '未填写'}\n`;
+                    }
+                }
+                
+                txtContent += `----------------------------------------\n\n`;
+            });
+
+            const blob = new Blob([txtContent], { type: 'text/plain; charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `微软令牌刷新结果_${new Date().getTime()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast('TXT文件下载成功！');
+        });
+
+        // 工具函数
+        function setStatus(type, message) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status ${type}`;
+            if (!message) statusMessage.style.display = 'none';
+        }
+
+        function showErrorTip(message) {
+            errorTipContainer.textContent = message;
+            errorTipContainer.style.display = 'block';
+        }
+
+        function displayResult(results) {
+            resultCount.textContent = `共 ${results.length} 条`;
+            
+            const formattedResult = results.map((item, index) => {
+                if (item.success) {
+                    return `【第 ${index + 1} 条 - 成功】
+行号：${item.lineNumber || 'N/A'}
+标识邮箱：${item.email || 'N/A'}
+client_id：${item.result.client_id}
+redirect_uri：${item.result.redirect_uri}
+token_type：${item.result.token_type}
+access_token：${item.result.access_token}
+新refresh_token：${item.result.refresh_token}
+有效期：${Math.floor(item.result.expires_in / 60)} 分钟
+过期时间：${new Date(item.result.expireTime).toLocaleString()}
+refresh_token过期时间：${new Date(item.result.refreshTokenExpireTime).toLocaleString()}
+scope：${item.result.scope}`;
+                } else {
+                    let errorText = `【第 ${index + 1} 条 - 失败】
+行号：${item.lineNumber || 'N/A'}
+标识邮箱：${item.email || 'N/A'}
+错误信息：${item.error || '无'}`;
+                    
+                    if (item.request) {
+                        errorText += `
+请求参数：
+  refresh_token：${item.request.refresh_token}
+  client_id：${item.request.client_id}
+  redirect_uri：${item.request.redirect_uri || '未填写'}`;
+                    }
+                    
+                    return errorText;
+                }
+            }).join('\n\n' + '-'.repeat(100) + '\n\n');
+
+            resultDisplay.textContent = formattedResult;
+            resultContainer.style.display = 'block';
+            
+            if (formattedResult.includes('<html') || formattedResult.includes('<body')) {
+                resultDisplay.classList.add('pre-html');
+            } else {
+                resultDisplay.classList.remove('pre-html');
+            }
+        }
+
+        function showToast(message) {
+            copyToast.textContent = message;
+            copyToast.classList.add('show');
+            setTimeout(() => {
+                copyToast.classList.remove('show');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>TK文档转换工具 - 晓阳</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            padding: 30px; 
+            font-family: Arial, sans-serif; 
+            background: #f5f5f5; 
+            color: #2d3748; 
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: #ffffff; 
+            padding: 30px; 
+            border-radius: 8px; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+            border: 1px solid #e2e8f0;
+        }
+        h3 { 
+            text-align: center; 
+            margin-bottom: 25px; 
+            color: #1f2937; 
+            font-size: 20px;
+        }
+        .drag-area {
+            width: 100%;
+            height: 300px;
+            border: 2px dashed #d1d5db; 
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .drag-area.active {
+            border-color: #1677ff; 
+            background: #f9fafb;
+        }
+        #dataText {
+            width: 100%;
+            height: 100%;
+            background: transparent; 
+            border: none;
+            outline: none;
+            color: #1f2937; 
+            font-size: 14px;
+            resize: none;
+            line-height: 1.8;
+        }
+        .drag-tip {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #6b7280; 
+            font-size: 14px;
+            pointer-events: none;
+            text-align: center;
+        }
+        button { 
+            width: 100%; 
+            height: 50px; 
+            background: #1677ff; 
+            color: #fff; 
+            border: none; 
+            border-radius: 6px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            transition: background 0.3s;
+        }
+        button:hover { 
+            background: #0958d9; 
+        }
+        .tip-box { 
+            margin-top: 20px; 
+            font-size: 13px; 
+            color: #6b7280; 
+            text-align: center;
+            line-height: 1.8;
+        }
+        .highlight { 
+            color: #1677ff; 
+            font-weight: bold; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h3>TK文档转换去重工具 - 晓阳 QQ：84548169</h3>
+        <div class="drag-area" id="dragArea">
+            <textarea id="dataText" placeholder="粘贴多行----分隔数据（示例）：
+user56792902047113----@K4a@kmC5bRs----scainiyelsid@hotmail.com----tu2R49jy
+user123456----pwd123----test1@hotmail.com----pass123
+user789012----pwd456----test2@outlook.com----pass456"></textarea>
+            <div class="drag-tip">
+                拖入.txt文件导入 | 或粘贴多行----分隔数据（每行4字段）
+            </div>
+        </div>
+        <button id="exportExcelBtn">导出xlsx（4列100%匹配）</button>
+        <div class="tip-box">
+            <p class="highlight">✅ 导入格式：userXXX----tk密码----微软邮箱----微软密码</p>
+            <p class="highlight">✅ 导出表格：tk账号（userXXX）| tk密码 | 微软邮箱 | 微软密码</p>
+            <p>✅ 支持任意多行，导入多少行导出多少行，无错位/缺失</p>
+        </div>
+    </div>
+
+    <script>
+        const dragArea = document.getElementById('dragArea');
+        const dataText = document.getElementById('dataText');
+        const exportBtn = document.getElementById('exportExcelBtn');
+
+        // 1. 拖入导入功能
+        dragArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dragArea.classList.add('active');
+        });
+        dragArea.addEventListener('dragleave', () => {
+            dragArea.classList.remove('active');
+        });
+        dragArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragArea.classList.remove('active');
+            const file = e.dataTransfer.files[0];
+            if (!file || !file.name.endsWith('.txt')) {
+                alert('仅支持导入.txt文本文件！');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                dataText.value = event.target.result;
+                alert(`导入成功！共${event.target.result.split(/\n/).filter(line => line.trim()).length}行数据`);
+            };
+            reader.readAsText(file, 'UTF-8');
+        });
+
+        // 2. 核心导出逻辑（精准4字段映射）
+        exportBtn.addEventListener('click', () => {
+            const input = dataText.value.trim();
+            if (!input) {
+                alert('请先粘贴或导入数据！');
+                return;
+            }
+
+            // 按行分割，过滤空行
+            const lines = input.split(/\r\n|\n|\r/).filter(line => line.trim() !== '');
+            if (lines.length === 0) {
+                alert('无有效数据！');
+                return;
+            }
+
+            // 固定表头（4列严格对应）
+            const header = ['tk账号', 'tk密码', '微软邮箱', '微软密码'];
+            const excelData = [header];
+
+            // 逐行解析（强制----分隔，4字段映射）
+            let errorCount = 0;
+            lines.forEach((line, idx) => {
+                const lineTrim = line.trim();
+                // 严格按----分割字段
+                const fields = lineTrim.split('----');
+
+                // 校验：必须是4个字段
+                if (fields.length !== 4) {
+                    errorCount++;
+                    console.log(`第${idx+1}行格式错误：${lineTrim}`);
+                    return;
+                }
+
+                const tkAccount = fields[0]; // 第1字段：userXXX → tk账号
+                const tkPwd = fields[1];     // 第2字段：@K4a@kmC5bRs → tk密码
+                const msEmail = fields[2];   // 第3字段：邮箱 → 微软邮箱
+                const msPwd = fields[3];     // 第4字段：密码 → 微软密码
+
+                // 加入Excel数据（保留原始字符，不trim）
+                excelData.push([tkAccount, tkPwd, msEmail, msPwd]);
+            });
+
+            // 提示错误行
+            if (errorCount > 0) {
+                alert(`解析完成！${lines.length}行数据中，${errorCount}行格式错误（非4字段----分隔），已跳过`);
+            }
+
+            // 生成Excel并优化列宽
+            const workbook = XLSX.utils.book_new();
+            const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+            worksheet['!cols'] = [
+                { wch: 20 }, // tk账号列宽
+                { wch: 20 }, // tk密码列宽
+                { wch: 35 }, // 微软邮箱列宽
+                { wch: 20 }  // 微软密码列宽
+            ];
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'TK账号数据');
+            XLSX.writeFile(workbook, 'TK_转换结果.xlsx');
+
+            alert(`导出成功！共导出${excelData.length-1}条有效数据，表格为4列严格匹配`);
+        });
+    </script>
+</body>
+</html>

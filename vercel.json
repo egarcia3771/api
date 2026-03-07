@@ -9,6 +9,16 @@
       "maxDuration": 60
     }
   },
+  "rewrites": [
+    {
+      "source": "/m/:id/(.*)",
+      "destination": "/api/m"
+    },
+    {
+      "source": "/m/:id",
+      "destination": "/api/m"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",

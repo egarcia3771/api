@@ -95,11 +95,13 @@ function preprocessText(rawText) {
     }
   });
   
+  // 合并数字间的分隔符，但保留其他空格
   const mergeSeparators = textWithAlt
-    .replace(/[\s\.\,\|\-\_\[\]\(\)\{\}\:：；]/g, '')
+    .replace(/(\d)[\s\-\_\.]+(\d)/g, '$1$2')
     .replace(/(\d)([a-zA-Z\u4e00-\u9fa5])(\d)/g, '$1$3');
 
-  const contextRegex = /(.{0,20})(验证码|校验码|动态码|登录码|安全码|短信码|授权码|临时码|激活码|verify code|validation code|auth code|security code)(.{0,20})/gi;
+  // 提取验证码相关上下文（扩展关键词）
+  const contextRegex = /(.{0,30})(验证码|校验码|动态码|登录码|安全码|短信码|授权码|临时码|激活码|确认码|verify code|verification code|validation code|auth code|authentication code|security code|otp|one time password|passcode|pin code|code|pin)(.{0,30})/gi;
   let contextText = '';
   let match;
   while ((match = contextRegex.exec(mergeSeparators)) !== null) {
@@ -107,22 +109,23 @@ function preprocessText(rawText) {
   }
 
   const targetText = contextText.trim() || mergeSeparators;
-  return targetText.toLowerCase().trim();
+  // 统一多余空格
+  return targetText.replace(/\s+/g, ' ').toLowerCase().trim();
 }
 
 const VERIFY_CODE_RULES = [
   {
-    regex: /(验证码|校验码|动态码|登录码|安全码|短信码|授权码|临时码|激活码|verify code|validation code|auth code|security code)[:：\s]*[【\(\{]?[0-9]{6}[】\)\}]?/ig,
+    regex: /(验证码|校验码|动态码|登录码|安全码|短信码|授权码|临时码|激活码|确认码|verify code|verification code|validation code|auth code|authentication code|security code|otp|one time password|passcode|pin code|access code|confirm code|confirmation code)[:：\s]*[【\(\{]?[0-9]{6}[】\)\}]?/ig,
     extractFn: (match) => match[0].replace(/[^0-9]/g, ''),
     confidence: 100
   },
   {
-    regex: /(v|code|verify|auth|激活码|验证码)[0-9]{6}/ig,
+    regex: /(code|otp|pin|verify|auth|激活码|验证码|验证|密码)\s*(is|为|是)?[:：\s]*[0-9]{6}/ig,
     extractFn: (match) => match[0].replace(/[^0-9]/g, ''),
     confidence: 98
   },
   {
-    regex: /(验证码|校验码|动态码|登录码|安全码|短信码|授权码|临时码|激活码|verify code|validation code|auth code|security code).{0,10}[0-9]{6}/ig,
+    regex: /(验证码|校验码|动态码|登录码|安全码|短信码|授权码|临时码|激活码|确认码|verify code|verification code|validation code|auth code|authentication code|security code|otp|passcode|pin).{0,10}[0-9]{6}/ig,
     extractFn: (match) => match[0].replace(/[^0-9]/g, ''),
     confidence: 95
   },
@@ -142,7 +145,7 @@ const VERIFY_CODE_RULES = [
     confidence: 80
   },
   {
-    regex: /(验证码|校验码|动态码|登录码|安全码|短信码|授权码|verify code|validation code|auth code|security code)[:：\s]*[【\(\{]?[0-9]{4}[】\)\}]?/ig,
+    regex: /(验证码|校验码|动态码|登录码|安全码|短信码|授权码|code|otp|pin)[:：\s]*[【\(\{]?[0-9]{4}[】\)\}]?/ig,
     extractFn: (match) => match[0].replace(/[^0-9]/g, ''),
     confidence: 10
   },
@@ -215,7 +218,7 @@ function generateCodeHtmlWithMeta(verifyCode, sender, sendDate, folder) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>小黑API取件系统</title>
         <style>
-          /* 整体黑色背景 */
+          /* 整体白色背景 */
           body { 
             margin: 0; 
             padding: 0; 
@@ -223,32 +226,32 @@ function generateCodeHtmlWithMeta(verifyCode, sender, sendDate, folder) {
             display: flex; 
             justify-content: center; 
             align-items: center; 
-            background-color: #000; /* 窗口背景设为纯黑 */
+            background-color: #f5f5f5; /* 窗口背景设为浅灰白色 */
           }
-          /* 内容容器：居中显示，轻微透明黑底增强层次感 */
+          /* 内容容器：居中显示，白色背景 */
           .container { 
             text-align: center; 
             padding: 40px 30px; 
-            background-color: rgba(0, 0, 0, 0.8); /* 半透黑底（可选，也可直接#000） */
+            background-color: #ffffff; /* 白色背景 */
             border-radius: 12px; 
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1); /* 白色微光阴影，增强黑色背景下的立体感 */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* 黑色阴影，增强白色背景下的立体感 */
             width: 90%;
             max-width: 500px;
           }
-          /* 欢迎语样式：醒目白色，大号字体，加粗，底部间距 */
+          /* 欢迎语样式：醒目深色，大号字体，加粗，底部间距 */
           .welcome-title { 
-            color: #fff; /* 白色字体 */
+            color: #2d3748; /* 深灰色字体 */
             font-size: 1.8em; 
             font-weight: bold; 
             margin-bottom: 30px; 
             padding-bottom: 15px;
-            border-bottom: 1px solid #333; /* 灰色分隔线，区分欢迎语和内容 */
+            border-bottom: 1px solid #e2e8f0; /* 浅灰色分隔线 */
           }
-          /* 元信息样式：浅灰色，清晰不喧宾夺主 */
+          /* 元信息样式：深灰色，清晰易读 */
           .meta-info { 
             margin-bottom: 25px; 
             font-size: 1em; 
-            color: #ccc; /* 浅灰色字体，黑色背景下更易读 */
+            color: #4a5568; /* 深灰色字体，白色背景下更易读 */
             line-height: 1.8; 
             text-align: left;
             padding: 0 20px;
@@ -258,7 +261,6 @@ function generateCodeHtmlWithMeta(verifyCode, sender, sendDate, folder) {
             ${codeStyle} 
             letter-spacing: 4px; /* 增加字符间距，更易识别 */
             margin: 10px 0; 
-            text-shadow: 0 0 10px rgba(229, 62, 62, 0.5); /* 6位验证码添加红色微光阴影 */
           }
         </style>
       </head>
@@ -478,13 +480,8 @@ module.exports = async (req, res) => {
       return res.status(405).send('不支持的请求方法');
     }
 
-    // 密码校验
+    // 密码认证已移除
     const isGet = req.method === 'GET';
-    const { password } = isGet ? req.query : req.body;
-    const expectedPassword = process.env.PASSWORD;
-    if (password !== expectedPassword && expectedPassword) {
-      return res.status(401).send('认证失败');
-    }
 
     // 参数校验
     const params = isGet ? req.query : req.body;
@@ -566,9 +563,9 @@ module.exports = async (req, res) => {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-              body { background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-              .error-container { color: #ff4444; text-align: center; background: rgba(0,0,0,0.8); padding: 30px; border-radius: 12px; }
-              .welcome-title { color: #fff; font-size: 1.8em; font-weight: bold; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 15px; }
+              body { background: #f5f5f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+              .error-container { color: #e53e3e; text-align: center; background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+              .welcome-title { color: #2d3748; font-size: 1.8em; font-weight: bold; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; }
             </style>
           </head>
           <body>

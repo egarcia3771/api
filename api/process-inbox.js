@@ -1,16 +1,7 @@
 const Imap = require('node-imap');
 
 module.exports = async (req, res) => {
-
-    const { password } = req.method === 'GET' ? req.query : req.body;
-
-    const expectedPassword = process.env.PASSWORD;
-
-    if (password !== expectedPassword) {
-        return res.status(401).json({
-            error: 'Authentication failed. Please provide valid credentials or contact administrator for access. Refer to API documentation for deployment details.'
-        });
-    }
+    // 密码验证已移除
     
     // 根据请求方法从 query 或 body 中获取参数
     const params = req.method === 'GET' ? req.query : req.body;

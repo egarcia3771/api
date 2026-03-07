@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>料子数据处理工具 - 晓阳 QQ：84548169</title>
+    <!-- 引入SheetJS库用于生成XLSX文件 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        /* 保留原有所有样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            color: #42a5f5;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+
+        .upload-area {
+            border: 2px dashed #333;
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: #42a5f5;
+            background-color: #252525;
+        }
+
+        .upload-area.active {
+            border-color: #4caf50;
+            background-color: #272e27;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: #42a5f5;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1e88e5;
+        }
+
+        .btn-success {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #388e3c;
+        }
+
+        .btn-danger {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #d32f2f;
+        }
+
+        .progress-container {
+            height: 8px;
+            background-color: #333;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: #4caf50;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .result-area {
+            margin-top: 20px;
+            background-color: #252525;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .result-count {
+            color: #42a5f5;
+            font-weight: bold;
+        }
+
+        .data-list {
+            list-style: none;
+        }
+
+        .data-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #2d2d2d;
+            color: #e0e0e0;
+            word-break: break-all;
+        }
+
+        .status-text {
+            text-align: center;
+            margin: 10px 0;
+            color: #9e9e9e;
+        }
+
+        .info-text {
+            color: #9e9e9e;
+            font-size: 14px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #252525;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #42a5f5;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #1e88e5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>料子数据处理工具 - 晓阳 QQ：84548169</h1>
+        
+        <!-- 上传区域 -->
+        <div class="upload-area" id="uploadArea">
+            <p>点击或拖拽TXT文件到此处上传</p>
+            <p style="margin-top: 10px; font-size: 14px; color: #9e9e9e;">支持超大文件，多线程处理不卡顿</p>
+            <input type="file" id="fileInput" accept=".txt">
+        </div>
+
+        <!-- 按钮组 -->
+        <div class="btn-group">
+            <button class="btn-primary" id="processBtn" disabled>开始解析</button>
+            <button class="btn-success" id="exportXlsxBtn" disabled>导出XLSX表格</button>
+            <button class="btn-danger" id="clearBtn">清空结果</button>
+        </div>
+
+        <!-- 进度条 -->
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <!-- 状态提示 -->
+        <div class="status-text" id="statusText"></div>
+
+        <!-- 结果展示区域 -->
+        <div class="result-area" id="resultArea">
+            <div class="result-header">
+                <span class="result-count" id="resultCount">解析结果 (0 行数据)</span>
+                <span style="font-size: 14px; color: #9e9e9e;">表格数据预览</span>
+            </div>
+            <ul class="data-list" id="dataList"></ul>
+        </div>
+
+        <div class="info-text">
+            导出格式：XLSX表格，第一行是字段表头，后续每行是数据（null值保留，时间格式转为年/月/日）
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let selectedFile = null;
+        let tableHeader = [ // 固定表头
+            'id', 'ssn', 'first_name', 'middle_name', 'gender', 
+            'last_name', 'birth_year', 'birth_month', 'birth_day', 
+            'street', 'city', 'state', 'zip', 'address', 
+            'data_source', 'channel', 'create_time', 'update_time', 
+            'email', 'phone'
+        ];
+        let tableData = []; // 存储解析后的数据行
+        let worker = null;
+
+        // DOM元素
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const processBtn = document.getElementById('processBtn');
+        const exportXlsxBtn = document.getElementById('exportXlsxBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const statusText = document.getElementById('statusText');
+        const resultArea = document.getElementById('resultArea');
+        const resultCount = document.getElementById('resultCount');
+        const dataList = document.getElementById('dataList');
+
+        // 上传区域事件
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('active');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('active');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('active');
+            if (e.dataTransfer.files.length > 0) {
+                handleFileSelection(e.dataTransfer.files[0]);
+            }
+        });
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                handleFileSelection(fileInput.files[0]);
+            }
+        });
+
+        // 文件选择处理
+        function handleFileSelection(file) {
+            if (file.type !== 'text/plain' && !file.name.endsWith('.txt')) {
+                showStatus('请选择TXT格式的文本文件', 'error');
+                return;
+            }
+            
+            selectedFile = file;
+            processBtn.disabled = false;
+            showStatus(`已选择文件: ${file.name} (${formatFileSize(file.size)})`, 'success');
+        }
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB';
+            return (bytes / 1048576).toFixed(2) + ' MB';
+        }
+
+        // 显示状态信息
+        function showStatus(text, type = 'info') {
+            statusText.textContent = text;
+            if (type === 'error') {
+                statusText.style.color = '#f44336';
+            } else if (type === 'success') {
+                statusText.style.color = '#4caf50';
+            } else {
+                statusText.style.color = '#9e9e9e';
+            }
+        }
+
+        // 时间格式转换：2025-12-17 → 2025/12/17
+        function formatDate(dateStr) {
+            if (!dateStr || dateStr === 'null') return dateStr;
+            return dateStr.replace(/-/g, '/');
+        }
+
+        // 开始解析按钮事件
+        processBtn.addEventListener('click', startParse);
+
+        // 多线程解析JSON为表格数据
+        function startParse() {
+            if (!selectedFile) return;
+
+            // 重置状态
+            tableData = [];
+            resultArea.style.display = 'none';
+            dataList.innerHTML = '';
+            exportXlsxBtn.disabled = true;
+
+            // 显示进度条
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            showStatus('正在解析JSON数据，请稍候...');
+
+            // 创建Web Worker（多线程）避免主线程卡顿
+            if (worker) {
+                worker.terminate();
+            }
+
+            // 创建Worker：解析JSON并转为表格行数据
+            const workerCode = `
+                // 固定表头（和主线程一致）
+                const tableHeader = [
+                    'id', 'ssn', 'first_name', 'middle_name', 'gender', 
+                    'last_name', 'birth_year', 'birth_month', 'birth_day', 
+                    'street', 'city', 'state', 'zip', 'address', 
+                    'data_source', 'channel', 'create_time', 'update_time', 
+                    'email', 'phone'
+                ];
+                // 时间格式转换：2025-12-17 → 2025/12/17
+                function formatDate(dateStr) {
+                    if (!dateStr || dateStr === 'null') return dateStr;
+                    return dateStr.replace(/-/g, '/');
+                }
+
+                self.onmessage = function(e) {
+                    const { content } = e.data;
+                    // 匹配完整的JSON对象（{...}），支持跨换行
+                    const jsonRegex = /\\{[\\s\\S]*?\\}/g;
+                    const matches = content.match(jsonRegex) || [];
+                    
+                    // 解析每个JSON为表格行数据
+                    const rows = [];
+                    matches.forEach(jsonStr => {
+                        try {
+                            const jsonObj = JSON.parse(jsonStr);
+                            // 按表头顺序提取字段值，null保留，时间格式化
+                            const row = tableHeader.map(field => {
+                                let value = jsonObj[field];
+                                // null/undefined转为字符串'null'
+                                if (value === null || value === undefined) return 'null';
+                                // 时间字段格式化
+                                if (field === 'create_time' || field === 'update_time') {
+                                    return formatDate(value);
+                                }
+                                return value.toString();
+                            });
+                            rows.push(row);
+                        } catch (e) {
+                            console.warn('JSON解析失败:', e);
+                        }
+                    });
+                    
+                    // 返回表格行数据
+                    self.postMessage({ 
+                        type: 'complete', 
+                        data: rows 
+                    });
+                };
+            `;
+
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            worker = new Worker(URL.createObjectURL(blob));
+
+            // 读取文件（分块读取）
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                worker.postMessage({ content: e.target.result });
+            };
+
+            reader.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    progressBar.style.width = `${percent}%`;
+                }
+            };
+
+            reader.readAsText(selectedFile);
+
+            // 监听Worker消息
+            worker.onmessage = function(e) {
+                if (e.data.type === 'complete') {
+                    // 处理完成
+                    progressBar.style.width = '100%';
+                    tableData = e.data.data;
+                    
+                    // 更新UI
+                    updateResultDisplay();
+                    showStatus(`解析完成！共提取到 ${tableData.length} 行数据`, 'success');
+                    exportXlsxBtn.disabled = false;
+                    
+                    // 清理Worker
+                    worker.terminate();
+                    worker = null;
+                }
+            };
+
+            // Worker错误处理
+            worker.onerror = function(error) {
+                showStatus(`解析出错: ${error.message}`, 'error');
+                worker.terminate();
+                worker = null;
+            };
+        }
+
+        // 更新结果展示
+        function updateResultDisplay() {
+            resultArea.style.display = 'block';
+            resultCount.textContent = `解析结果 (${tableData.length} 行数据)`;
+            dataList.innerHTML = '';
+
+            if (tableData.length === 0) {
+                dataList.innerHTML = '<li class="data-item">未解析到有效JSON数据</li>';
+                return;
+            }
+
+            // 显示表头
+            const headerLi = document.createElement('li');
+            headerLi.className = 'data-item';
+            headerLi.style.color = '#42a5f5';
+            headerLi.textContent = `表头：${tableHeader.join(' | ')}`;
+            dataList.appendChild(headerLi);
+
+            // 显示数据行（预览，用|分隔更易读）
+            tableData.forEach((row, index) => {
+                const li = document.createElement('li');
+                li.className = 'data-item';
+                li.textContent = `数据行 ${index+1}：${row.join(' | ')}`;
+                dataList.appendChild(li);
+            });
+        }
+
+        // 导出XLSX表格文件
+        exportXlsxBtn.addEventListener('click', () => {
+            if (tableData.length === 0) {
+                showStatus('没有可导出的数据', 'error');
+                return;
+            }
+
+            // 准备表格数据：表头 + 数据行
+            const excelData = [tableHeader, ...tableData];
+            
+            // 创建工作簿和工作表
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+            // 优化表格样式：设置列宽（根据字段长度适配）
+            const columnWidths = tableHeader.map(header => ({ wch: Math.max(header.length + 2, 10) }));
+            ws['!cols'] = columnWidths;
+            
+            // 设置工作表名称
+            XLSX.utils.book_append_sheet(wb, ws, 'JSON解析数据');
+
+            // 生成文件名：JSON解析结果_20260107.xlsx（年月日格式）
+            const today = new Date();
+            const dateStr = today.getFullYear() + 
+                           String(today.getMonth() + 1).padStart(2, '0') + 
+                           String(today.getDate()).padStart(2, '0');
+            const fileName = `JSON解析结果_${dateStr}.xlsx`;
+
+            // 导出文件
+            XLSX.writeFile(wb, fileName);
+
+            showStatus(`已导出 ${tableData.length} 行数据为XLSX表格文件`, 'success');
+        });
+
+        // 清空结果
+        clearBtn.addEventListener('click', () => {
+            tableData = [];
+            selectedFile = null;
+            fileInput.value = '';
+            resultArea.style.display = 'none';
+            progressContainer.style.display = 'none';
+            progressBar.style.width = '0%';
+            processBtn.disabled = true;
+            exportXlsxBtn.disabled = true;
+            showStatus('已清空所有数据');
+        });
+    </script>
+</body>
+</html>

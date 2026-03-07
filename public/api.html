@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>微软邮箱令牌取件管理系统api教程例子-小黑</title>
+    <title>微软邮箱令牌取件管理系统 API 文档</title>
     <meta name="description" content="简化批量取件操作流程，提供高效邮箱API服务">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
@@ -11,13 +11,13 @@
     
     <style>
         :root {
-            --bg-dark: #121212;
-            --bg-card: #1E1E1E;
-            --text-primary: #E0E0E0;
-            --text-secondary: #9E9E9E;
+            --bg-dark: #f5f5f5;
+            --bg-card: #ffffff;
+            --text-primary: #2d3748;
+            --text-secondary: #6b7280;
             --color-primary: #165DFF;
             --color-secondary: #36CFFB;
-            --border-gray: #333333;
+            --border-gray: #e2e8f0;
         }
 
         * {
@@ -42,7 +42,7 @@
 
         /* Header */
         header {
-            background-color: rgba(18, 18, 18, 0.8);
+            background-color: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(8px);
             border-bottom: 1px solid var(--border-gray);
             position: sticky;
@@ -70,7 +70,7 @@
 
         .logo h1 {
             font-size: 1.5rem;
-            color: white;
+            color: #1f2937;
         }
 
         .logo span {
@@ -137,7 +137,7 @@
             margin: 0 auto;
             background-color: var(--bg-card);
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             padding: 30px 40px;
         }
 
@@ -177,7 +177,7 @@
 
         .api-header h2 {
             font-size: 1.8rem;
-            color: white;
+            color: #1f2937;
         }
 
         .api-meta {
@@ -202,7 +202,7 @@
 
         .meta-item p {
             font-weight: 500;
-            color: white;
+            color: #1f2937;
         }
 
         .meta-item p.url {
@@ -212,7 +212,7 @@
 
         h3 {
             font-size: 1.3rem;
-            color: white;
+            color: #1f2937;
             margin-bottom: 15px;
         }
 
@@ -235,16 +235,16 @@
         }
 
         tbody tr:nth-child(even) {
-            background-color: rgba(255, 255, 255, 0.03);
+            background-color: #f9fafb;
         }
 
         tbody tr:hover {
-            background-color: rgba(255, 255, 255, 0.05);
+            background-color: #f3f4f6;
         }
 
         td.param {
             font-family: 'Fira Code', monospace;
-            color: white;
+            color: #1f2937;
         }
 
         td.required {
@@ -253,10 +253,11 @@
         }
 
         .code-example {
-            background-color: #111111;
+            background-color: #f9fafb;
             border-radius: 8px;
             overflow: hidden;
             margin-bottom: 10px;
+            border: 1px solid var(--border-gray);
         }
 
         .code-header {
@@ -291,7 +292,7 @@
         pre {
             padding: 20px;
             overflow-x: auto;
-            color: #d4d4d4;
+            color: #1f2937;
             font-family: 'Fira Code', monospace;
             font-size: 0.9rem;
             line-height: 1.5;
@@ -326,7 +327,7 @@
 
         .footer-logo h3 {
             font-size: 1.5rem;
-            color: white;
+            color: #1f2937;
             margin-bottom: 5px;
         }
 
@@ -424,8 +425,8 @@
             <div class="logo">
                 <i class="fas fa-envelope-open"></i>
                 <div>
-                    <h1>微软邮箱令牌取件管理系统api教程例子</h1>
-                    <span>小黑 QQ113575320</span>
+                    <h1>微软邮箱令牌取件管理系统 API 文档</h1>
+                    <span>晓阳 Qq:84548169</span>
                 </div>
             </div>
             <nav>
@@ -438,12 +439,6 @@
     </header>
 
     <main class="container">
-        <section class="purchase-section">
-            <a href="https://xiaoheifk.cn" target="_blank" rel="noopener" class="purchase-btn">
-                <i class="fas fa-shopping-cart"></i> 点我购买微软长效邮箱和在线取件系统
-            </a>
-            <p>官方授权，稳定可靠，支持批量管理取件</p>
-        </section>
 
         <section id="api" class="api-docs">
             <!-- API 1: 获取最新一封邮件 -->
@@ -503,11 +498,6 @@
                             <td>可选</td>
                             <td>返回格式（json / html，默认 json）</td>
                         </tr>
-                        <tr>
-                            <td class="param">password</td>
-                            <td>可选</td>
-                            <td>接口安全验证密码（联系小黑）</td>
-                        </tr>
                     </tbody>
                 </table>
                 <h3>使用示例</h3>
@@ -517,13 +507,13 @@
                         <button class="copy-btn" onclick="copyCode(this)"><i class="fas fa-copy"></i> 复制代码</button>
                     </div>
                     <pre><code>// GET 请求
-fetch('https://xiaoheifk.cn/api/mail-new?refresh_token=your_refresh_token&client_id=your_client_id&email=your_email@example.com&mailbox=INBOX&response_type=json')
+fetch('/api/mail-new?refresh_token=your_refresh_token&client_id=your_client_id&email=your_email@example.com&mailbox=INBOX&response_type=json')
   .then(response => response.json())
   .then(data => console.log(data))
   .catch(error => console.error('Error:', error));
 
 // POST 请求
-fetch('https://xiaoheifk.cn/api/mail-new', {
+fetch('/api/mail-new', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json'
@@ -594,11 +584,6 @@ fetch('https://xiaoheifk.cn/api/mail-new', {
                             <td class="required">必填</td>
                             <td>邮箱文件夹（INBOX / Junk）</td>
                         </tr>
-                        <tr>
-                            <td class="param">password</td>
-                            <td>可选</td>
-                            <td>接口安全验证密码（联系小黑）</td>
-                        </tr>
                     </tbody>
                 </table>
                 <h3>使用示例</h3>
@@ -608,13 +593,13 @@ fetch('https://xiaoheifk.cn/api/mail-new', {
                         <button class="copy-btn" onclick="copyCode(this)"><i class="fas fa-copy"></i> 复制代码</button>
                     </div>
                     <pre><code>// GET 请求
-fetch('https://xiaoheifk.cn/api/mail-all?refresh_token=your_refresh_token&client_id=your_client_id&email=your_email@example.com&mailbox=INBOX')
+fetch('/api/mail-all?refresh_token=your_refresh_token&client_id=your_client_id&email=your_email@example.com&mailbox=INBOX')
   .then(response => response.json())
   .then(data => console.log(data))
   .catch(error => console.error('Error:', error));
 
 // POST 请求
-fetch('https://xiaoheifk.cn/api/mail-all', {
+fetch('/api/mail-all', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json'
@@ -679,11 +664,6 @@ fetch('https://xiaoheifk.cn/api/mail-all', {
                             <td class="required">必填</td>
                             <td>邮箱地址</td>
                         </tr>
-                        <tr>
-                            <td class="param">password</td>
-                            <td>可选</td>
-                            <td>接口安全验证密码（联系小黑）</td>
-                        </tr>
                     </tbody>
                 </table>
                 <h3>使用示例</h3>
@@ -693,13 +673,13 @@ fetch('https://xiaoheifk.cn/api/mail-all', {
                         <button class="copy-btn" onclick="copyCode(this)"><i class="fas fa-copy"></i> 复制代码</button>
                     </div>
                     <pre><code>// GET 请求
-fetch('https://xiaoheifk.cn/api/process-inbox?refresh_token=your_refresh_token&client_id=your_client_id&email=your_email@example.com')
+fetch('/api/process-inbox?refresh_token=your_refresh_token&client_id=your_client_id&email=your_email@example.com')
   .then(response => response.json())
   .then(data => console.log(data))
   .catch(error => console.error('Error:', error));
 
 // POST 请求
-fetch('https://xiaoheifk.cn/api/process-inbox', {
+fetch('/api/process-inbox', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json'
@@ -763,11 +743,6 @@ fetch('https://xiaoheifk.cn/api/process-inbox', {
                             <td class="required">必填</td>
                             <td>邮箱地址</td>
                         </tr>
-                        <tr>
-                            <td class="param">password</td>
-                            <td>可选</td>
-                            <td>接口安全验证密码（联系小黑）</td>
-                        </tr>
                     </tbody>
                 </table>
                 <h3>使用示例</h3>
@@ -777,13 +752,13 @@ fetch('https://xiaoheifk.cn/api/process-inbox', {
                         <button class="copy-btn" onclick="copyCode(this)"><i class="fas fa-copy"></i> 复制代码</button>
                     </div>
                     <pre><code>// GET 请求
-fetch('https://xiaoheifk.cn/api/process-junk?refresh_token=your_refresh_token&client_id=your_client_id&email=your_email@example.com')
+fetch('/api/process-junk?refresh_token=your_refresh_token&client_id=your_client_id&email=your_email@example.com')
   .then(response => response.json())
   .then(data => console.log(data))
   .catch(error => console.error('Error:', error));
 
 // POST 请求
-fetch('https://xiaoheifk.cn/api/process-junk', {
+fetch('/api/process-junk', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json'
@@ -812,9 +787,7 @@ fetch('https://xiaoheifk.cn/api/process-junk', {
                 </div>
             </div>
             <div class="footer-info">
-                <!-- 已移除作者信息 -->
-                <p>小黑QQ: 113575320</p>
-                <a href="https://xiaoheifk.cn/" target="_blank" rel="noopener">在线取件地址: https://xiaoheifk.cn/</a>
+                <p>有任何问题联系 晓阳Qq：84548169</p>
             </div>
         </div>
         <div class="copyright">

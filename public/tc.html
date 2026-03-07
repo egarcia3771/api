@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微软邮箱料子匹配密码填充工具 - 晓阳 QQ：84548169</title>
+    <!-- 引入SheetJS库处理Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        /* 全局黑色主题样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            color: #2d3748;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #1f2937;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4a5568;
+            font-size: 14px;
+        }
+
+        input[type="file"] {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            padding: 10px;
+            border-radius: 4px;
+            color: #1f2937;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            padding: 10px;
+            color: #1f2937;
+            resize: vertical;
+            font-size: 14px;
+        }
+
+        select {
+            width: 100%;
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            padding: 10px;
+            color: #1f2937;
+            cursor: pointer;
+        }
+
+        .btn {
+            background-color: #0078d7;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #005a9e;
+        }
+
+        .btn:disabled {
+            background-color: #d1d5db;
+            cursor: not-allowed;
+        }
+
+        .stats-container {
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .stats-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #1f2937;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-item {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1f2937;
+        }
+
+        .success {
+            color: #4cd964;
+        }
+
+        .failed {
+            color: #ff3b30;
+        }
+
+        .info {
+            color: #0078d7;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        /* 导出按钮组样式 */
+        .export-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        #exportAllBtn {
+            background-color: #0078d7;
+        }
+
+        #exportAllBtn:hover {
+            background-color: #005a9e;
+        }
+
+        #exportSuccessBtn {
+            background-color: #28a745;
+        }
+
+        #exportSuccessBtn:hover {
+            background-color: #1e7e34;
+        }
+
+        #exportFailedBtn {
+            background-color: #dc3545;
+        }
+
+        #exportFailedBtn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>微软邮箱料子匹配密码填充工具 - 晓阳 QQ：84548169</h1>
+
+        <!-- 文件上传区域 -->
+        <div class="form-group">
+            <label for="excelFile">1. 上传Excel文件（.xlsx格式）</label>
+            <input type="file" id="excelFile" accept=".xlsx" required>
+            <div class="hint">提示：请确保Excel包含email列，列名与数据格式匹配示例</div>
+        </div>
+
+        <!-- 匹配数据输入区域 -->
+        <div class="form-group">
+            <label for="matchingData">2. 输入匹配数据（每行一条，格式：邮箱----密码----其他信息）</label>
+            <textarea id="matchingData" placeholder="示例：
+michael.ballenger@hotmail.com----rgauk89946----9e5f94bc-e8a4-4e73-b8be-63364c29d753----xxx
+test@outlook.com----12345678----xxx----xxx"></textarea>
+        </div>
+
+        <!-- 目标列选择 -->
+        <div class="form-group">
+            <label for="targetCol">3. 选择密码填充目标列</label>
+            <select id="targetCol">
+                <option value="phone">phone（默认）</option>
+                <option value="mull">mull</option>
+            </select>
+        </div>
+
+        <!-- 处理按钮 -->
+        <button id="processBtn" class="btn" onclick="processExcel()">开始处理</button>
+
+        <!-- 统计结果区域 -->
+        <div id="statsContainer" class="stats-container">
+            <div class="stats-title">匹配结果统计</div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-label">总记录数</div>
+                    <div id="totalRecords" class="stat-value info">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">微软邮箱总数</div>
+                    <div id="microsoftTotal" class="stat-value info">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">匹配成功数</div>
+                    <div id="matchSuccess" class="stat-value success">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">匹配失败数</div>
+                    <div id="matchFailed" class="stat-value failed">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">非微软邮箱数</div>
+                    <div id="nonMicrosoft" class="stat-value info">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 导出按钮组 -->
+        <div id="exportGroup" class="export-group">
+            <button id="exportAllBtn" class="btn" onclick="exportAllExcel()">导出全部数据</button>
+            <button id="exportSuccessBtn" class="btn" onclick="exportSuccessExcel()">导出成功匹配</button>
+            <button id="exportFailedBtn" class="btn" onclick="exportFailedExcel()">导出匹配失败</button>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量存储处理后的数据
+        let processedWorkbook = null;      // 全部数据
+        let successWorkbook = null;        // 成功匹配数据
+        let failedWorkbook = null;         // 匹配失败数据
+        let originalHeader = null;         // 原始表头
+        let stats = {
+            totalRecords: 0,
+            microsoftTotal: 0,
+            matchSuccess: 0,
+            matchFailed: 0,
+            nonMicrosoft: 0
+        };
+
+        // 微软邮箱域名列表
+        const MICROSOFT_DOMAINS = new Set(['hotmail.com', 'outlook.com', 'live.com', 'msn.com']);
+
+        /**
+         * 解析匹配数据
+         */
+        function parseMatchingData(dataStr) {
+            const emailPasswordMap = {};
+            const lines = dataStr.trim().split('\n');
+            
+            lines.forEach(line => {
+                line = line.trim();
+                if (!line) return;
+                
+                const parts = line.split('----');
+                if (parts.length >= 2) {
+                    const email = parts[0].trim().toLowerCase();
+                    const password = parts[1].trim();
+                    emailPasswordMap[email] = password;
+                }
+            });
+            
+            return emailPasswordMap;
+        }
+
+        /**
+         * 判断是否为微软邮箱
+         */
+        function isMicrosoftEmail(email) {
+            if (!email || email === 'null') return false;
+            const emailLower = email.toLowerCase();
+            return Array.from(MICROSOFT_DOMAINS).some(domain => emailLower.includes(domain));
+        }
+
+        /**
+         * 创建Workbook并导出
+         */
+        function createWorkbook(data) {
+            const workbook = XLSX.utils.book_new();
+            const worksheet = XLSX.utils.aoa_to_sheet(data);
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+            return workbook;
+        }
+
+        /**
+         * 处理Excel文件
+         */
+        function processExcel() {
+            const fileInput = document.getElementById('excelFile');
+            const matchingDataInput = document.getElementById('matchingData');
+            const targetCol = document.getElementById('targetCol').value;
+            
+            // 检查文件是否上传
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('请先上传Excel文件！');
+                return;
+            }
+
+            // 检查匹配数据是否输入
+            if (!matchingDataInput.value.trim()) {
+                alert('请输入匹配数据！');
+                return;
+            }
+
+            // 禁用处理按钮
+            document.getElementById('processBtn').disabled = true;
+            document.getElementById('processBtn').textContent = '处理中...';
+
+            // 读取Excel文件
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    // 解析Excel
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // 获取第一个工作表
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    
+                    // 转换为JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                        header: 1,
+                        defval: 'null'
+                    });
+
+                    // 获取表头和数据行
+                    originalHeader = jsonData[0];
+                    const rows = jsonData.slice(1);
+                    
+                    // 检查email列是否存在
+                    const emailColIndex = originalHeader.findIndex(col => col.toLowerCase() === 'email');
+                    if (emailColIndex === -1) {
+                        throw new Error('Excel中未找到email列！');
+                    }
+
+                    // 检查目标列是否存在，不存在则添加
+                    let targetColIndex = originalHeader.findIndex(col => col.toLowerCase() === targetCol.toLowerCase());
+                    if (targetColIndex === -1) {
+                        originalHeader.push(targetCol);
+                        targetColIndex = originalHeader.length - 1;
+                    }
+
+                    // 解析匹配数据
+                    const emailPasswordMap = parseMatchingData(matchingDataInput.value);
+
+                    // 重置统计数据
+                    stats = {
+                        totalRecords: rows.length,
+                        microsoftTotal: 0,
+                        matchSuccess: 0,
+                        matchFailed: 0,
+                        nonMicrosoft: 0
+                    };
+
+                    // 分类存储数据行
+                    const allRows = [];       // 全部行
+                    const successRows = [];   // 成功匹配行
+                    const failedRows = [];    // 匹配失败行
+
+                    // 处理每一行数据
+                    rows.forEach(row => {
+                        // 确保行长度足够
+                        while (row.length < originalHeader.length) {
+                            row.push('null');
+                        }
+
+                        const email = row[emailColIndex];
+                        const emailLower = email.toLowerCase();
+                        
+                        // 复制当前行（避免引用问题）
+                        const currentRow = [...row];
+                        
+                        // 判断是否为微软邮箱
+                        if (isMicrosoftEmail(email)) {
+                            stats.microsoftTotal++;
+                            
+                            // 匹配密码
+                            if (emailPasswordMap[emailLower]) {
+                                currentRow[targetColIndex] = emailPasswordMap[emailLower];
+                                stats.matchSuccess++;
+                                successRows.push(currentRow); // 加入成功列表
+                            } else {
+                                currentRow[targetColIndex] = 'null';
+                                stats.matchFailed++;
+                                failedRows.push(currentRow);  // 加入失败列表
+                            }
+                        } else {
+                            stats.nonMicrosoft++;
+                            currentRow[targetColIndex] = 'null';
+                        }
+                        
+                        allRows.push(currentRow); // 加入全部列表
+                    });
+
+                    // 构建完整数据（表头+数据行）
+                    const allData = [originalHeader, ...allRows];
+                    const successData = [originalHeader, ...successRows];
+                    const failedData = [originalHeader, ...failedRows];
+
+                    // 创建Workbook
+                    processedWorkbook = createWorkbook(allData);
+                    successWorkbook = createWorkbook(successData);
+                    failedWorkbook = createWorkbook(failedData);
+
+                    // 更新统计显示
+                    updateStatsDisplay();
+
+                    // 显示统计区域和导出按钮组
+                    document.getElementById('statsContainer').style.display = 'block';
+                    document.getElementById('exportGroup').style.display = 'grid';
+
+                } catch (error) {
+                    alert(`处理失败：${error.message}`);
+                    console.error(error);
+                } finally {
+                    // 启用处理按钮
+                    document.getElementById('processBtn').disabled = false;
+                    document.getElementById('processBtn').textContent = '开始处理';
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        /**
+         * 更新统计结果显示
+         */
+        function updateStatsDisplay() {
+            document.getElementById('totalRecords').textContent = stats.totalRecords;
+            document.getElementById('microsoftTotal').textContent = stats.microsoftTotal;
+            document.getElementById('matchSuccess').textContent = stats.matchSuccess;
+            document.getElementById('matchFailed').textContent = stats.matchFailed;
+            document.getElementById('nonMicrosoft').textContent = stats.nonMicrosoft;
+        }
+
+        /**
+         * 导出全部数据
+         */
+        function exportAllExcel() {
+            if (!processedWorkbook) {
+                alert('暂无处理后的数据可导出！');
+                return;
+            }
+            const originalFileName = document.getElementById('excelFile').files[0].name;
+            const baseName = originalFileName.replace(/\.xlsx$/, '');
+            XLSX.writeFile(processedWorkbook, `${baseName}_全部数据.xlsx`);
+        }
+
+        /**
+         * 导出成功匹配数据
+         */
+        function exportSuccessExcel() {
+            if (!successWorkbook || stats.matchSuccess === 0) {
+                alert('暂无成功匹配的数据可导出！');
+                return;
+            }
+            const originalFileName = document.getElementById('excelFile').files[0].name;
+            const baseName = originalFileName.replace(/\.xlsx$/, '');
+            XLSX.writeFile(successWorkbook, `${baseName}_成功匹配.xlsx`);
+        }
+
+        /**
+         * 导出匹配失败数据
+         */
+        function exportFailedExcel() {
+            if (!failedWorkbook || stats.matchFailed === 0) {
+                alert('暂无匹配失败的数据可导出！');
+                return;
+            }
+            const originalFileName = document.getElementById('excelFile').files[0].name;
+            const baseName = originalFileName.replace(/\.xlsx$/, '');
+            XLSX.writeFile(failedWorkbook, `${baseName}_匹配失败.xlsx`);
+        }
+    </script>
+</body>
+</html>
