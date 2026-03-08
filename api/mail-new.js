@@ -95,12 +95,12 @@ function validateParams(params) {
 function preprocessText(rawText) {
   if (!rawText) return '';
 
-  // 移除HTML标签，保留空格
-  const withoutHtml = rawText.replace(/<[^>]+>/g, ' ');
+  // 移除HTML标签
+  const withoutHtml = rawText.replace(/<[^>]+>/g, '');
   // 合并数字中的空格/分隔符（-/_/空格）→ 确保6位数字连续
   const mergeDigitSeparators = withoutHtml.replace(/(\d)[\s-_]+(\d)/g, '$1$2');
-  // 保留数字、字母、中文、常用标点和空格，移除其他特殊字符
-  const cleanSpecialChars = mergeDigitSeparators.replace(/[^\u4e00-\u9fa5a-zA-Z0-9，。：！？\s:]/g, ' ');
+  // 保留数字、字母、中文、常用标点，移除其他特殊字符
+  const cleanSpecialChars = mergeDigitSeparators.replace(/[^\u4e00-\u9fa5a-zA-Z0-9，。：！？]/g, '');
   // 去除多余空格/换行，统一为单个空格
   const normalized = cleanSpecialChars.replace(/\s+/g, ' ').trim();
   // 统一大小写
@@ -109,42 +109,28 @@ function preprocessText(rawText) {
 
 // 2. 验证码规则库（仅保留6位相关，4位仅作为最终兜底）
 const VERIFY_CODE_RULES = [
-  // 最高优先级：英文语义6位数字（扩展关键词）
+  // 最高优先级：英文语义6位数字
   {
-    regex: /(verify code|verification code|validation code|auth code|authentication code|security code|otp|one time password|passcode|pin code|access code|confirm code|confirmation code)[:：\s]*([0-9]{6})/i,
+    regex: /(verify code|validation code|auth code|security code)[:：\s]*([0-9]{6})/i,
     desc: "英文语义6位数字验证码",
     extractGroup: 2,
     confidence: 100
   },
   // 次高优先级：中文语义6位数字（覆盖所有常见关键词）
   {
-    regex: /(验证码|校验码|动态码|登录码|安全码|短信码|授权码|动态口令|登录口令|确认码|激活码)[:：\s]*([0-9]{6})/i,
+    regex: /(验证码|校验码|动态码|登录码|安全码|短信码|授权码|动态口令|登录口令|验证码)[:：\s]*([0-9]{6})/i,
     desc: "中文语义6位数字验证码",
     extractGroup: 2,
     confidence: 100
   },
-  // 第三优先级：简短关键词+6位数字
+  // 第三优先级：带分隔符的6位数字（如123-456 → 预处理后已合并为123456）
   {
-    regex: /(code|otp|pin|验证|密码)[:：\s]*([0-9]{6})/i,
-    desc: "简短关键词6位数字验证码",
-    extractGroup: 2,
-    confidence: 98
-  },
-  // 第四优先级：is 句式（Your code is 123456）
-  {
-    regex: /(code|otp|pin|验证码)\s+(is|为|是)[:：\s]*([0-9]{6})/i,
-    desc: "is句式6位数字验证码",
-    extractGroup: 3,
-    confidence: 98
-  },
-  // 第五优先级：带分隔符的6位数字（如123-456 → 预处理后已合并为123456）
-  {
-    regex: /(验证码|校验码|code|otp)[:：\s]*([0-9]{3}[-_][0-9]{3})/i,
+    regex: /(验证码|校验码)[:：\s]*([0-9]{3}[-_][0-9]{3})/i,
     desc: "带分隔符的6位数字验证码",
     extractGroup: 2,
     confidence: 95
   },
-  // 第六优先级：纯6位数字（兜底，无语义也优先6位）
+  // 第四优先级：纯6位数字（兜底，无语义也优先6位）
   {
     regex: /\b[0-9]{6}\b/,
     desc: "纯6位数字验证码",
@@ -153,7 +139,7 @@ const VERIFY_CODE_RULES = [
   },
   // 最低优先级：4位（仅无6位时返回）
   {
-    regex: /(验证码|校验码|code|otp|pin)[:：\s]*([0-9]{4})/i,
+    regex: /(验证码|校验码)[:：\s]*([0-9]{4})/i,
     desc: "中文语义4位数字验证码（兜底）",
     extractGroup: 2,
     confidence: 10

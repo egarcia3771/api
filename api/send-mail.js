@@ -9,24 +9,24 @@
     <!-- 引入图标库（增加视觉区分） -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
-        /* 全局白色背景基础样式 */
+        /* 全局黑色背景基础样式 */
         body { 
             padding: 20px; 
-            background-color: #f5f5f5 !important; 
-            color: #2d3748 !important; /* 全局深色文字 */
+            background-color: #000 !important; 
+            color: #e0e0e0 !important; /* 全局浅色文字 */
         }
         .form-group { margin-bottom: 15px; }
         
         /* 日志区域样式 */
         .log-area { 
             height: 300px; 
-            border: 1px solid #e2e8f0; 
+            border: 1px solid #333; 
             border-radius: 4px; 
             padding: 10px; 
             overflow-y: auto; 
-            background: #ffffff !important; /* 日志区域白色背景 */
+            background: #111 !important; /* 日志区域深色背景 */
             font-family: monospace;
-            color: #2d3748;
+            color: #e0e0e0;
         }
         
         /* 优化后的库存卡片样式 */
@@ -34,14 +34,14 @@
             margin-bottom: 15px; 
             padding: 15px; 
             border-radius: 8px; 
-            background-color: #ffffff !important; 
-            border: 1px solid #e2e8f0 !important;
+            background-color: #1a1a1a !important; 
+            border: 1px solid #333 !important;
             transition: all 0.3s ease; /* hover动画 */
         }
         .stock-card:hover {
-            border-color: #cbd5e0 !important;
+            border-color: #666 !important;
             transform: translateY(-2px); /* 轻微上浮 */
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
         }
         
         /* 库存卡片标签（区分API类型） */
@@ -52,21 +52,21 @@
             font-size: 12px;
             margin-bottom: 8px;
         }
-        .tag-outlook007 { background-color: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
-        .tag-shankeyun { background-color: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+        .tag-outlook007 { background-color: #0d6efd33; color: #0d6efd; border: 1px solid #0d6efd55; }
+        .tag-shankeyun { background-color: #19875433; color: #198754; border: 1px solid #19875455; }
         
         /* 库存数字样式（放大突出） */
         .stock-value {
             font-size: 28px;
             font-weight: bold;
-            color: #1a202c;
+            color: #fff;
             margin: 10px 0;
         }
         
         /* 功能说明文字（清晰对应下拉框） */
         .stock-desc {
             font-size: 13px;
-            color: #4a5568;
+            color: #ccc;
             line-height: 1.4;
         }
         
@@ -75,38 +75,38 @@
             font-size: 12px;
             margin-top: 8px;
         }
-        .status-loading { color: #d97706; }
-        .status-error { color: #dc2626; }
-        .status-success { color: #059669; }
+        .status-loading { color: #ffc107; }
+        .status-error { color: #dc3545; }
+        .status-success { color: #28a745; }
         
         /* 按钮组间距 */
         .btn-group { margin-bottom: 20px; }
         
         /* 日志类型颜色（保持辨识度） */
-        .timestamp { color: #6b7280; }
-        .success { color: #059669; } /* 绿色 - 成功 */
-        .error { color: #dc2626; } /* 红色 - 错误 */
-        .warning { color: #d97706; } /* 黄色 - 警告 */
-        .info { color: #0891b2; } /* 蓝色 - 信息 */
+        .timestamp { color: #6c757d; }
+        .success { color: #28a745; } /* 绿色 - 成功 */
+        .error { color: #dc3545; } /* 红色 - 错误 */
+        .warning { color: #ffc107; } /* 黄色 - 警告 */
+        .info { color: #17a2b8; } /* 蓝色 - 信息 */
         
         /* 卡片样式修改 */
         .card { 
-            background-color: #ffffff !important; 
-            border: 1px solid #e2e8f0 !important; 
-            color: #2d3748 !important;
+            background-color: #1a1a1a !important; 
+            border: 1px solid #333 !important; 
+            color: #e0e0e0 !important;
         }
-        .card-title { color: #1a202c !important; }
-        .card-text { color: #4a5568 !important; }
+        .card-title { color: #fff !important; }
+        .card-text { color: #ccc !important; }
         
         /* 输入框、下拉框样式 */
         .form-control {
-            background-color: #ffffff !important;
-            border: 1px solid #d1d5db !important;
-            color: #1f2937 !important;
+            background-color: #2d2d2d !important;
+            border: 1px solid #444 !important;
+            color: #e0e0e0 !important;
         }
         .form-control:focus {
-            border-color: #3b82f6 !important;
-            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25) !important;
+            border-color: #666 !important;
+            box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25) !important;
         }
         
         /* 按钮样式（保持原有颜色，提升对比度） */
@@ -118,7 +118,7 @@
         
         /* 标题样式 */
         .section-title {
-            color: #1a202c;
+            color: #fff;
             margin: 20px 0 15px;
             font-size: 18px;
             display: flex;
