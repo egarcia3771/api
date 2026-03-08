@@ -1,8 +1,6 @@
-// 短链接管理系统
+// 短链接管理系统 - 使用 Vercel KV 高性能存储
 const crypto = require('crypto');
-
-// 内存存储 (生产环境建议使用 Redis)
-const linkStore = new Map();
+const { kv } = require('@vercel/kv');
 
 // 生成短 ID
 function generateShortId() {
@@ -10,42 +8,31 @@ function generateShortId() {
 }
 
 // 创建短链接
-function createShortLink(apiPath, params) {
+async function createShortLink(apiPath, params) {
     const shortId = generateShortId();
-    linkStore.set(shortId, {
+    await kv.set(`shortlink:${shortId}`, {
         apiPath,
         params,
         createdAt: Date.now(),
         accessCount: 0
+    }, {
+        ex: 60 * 60 * 24 * 7 // 7天过期
     });
     return shortId;
 }
 
 // 获取短链接信息
-function getShortLink(shortId) {
-    const link = linkStore.get(shortId);
+async function getShortLink(shortId) {
+    const link = await kv.get(`shortlink:${shortId}`);
     if (link) {
-        link.accessCount++;
-        link.lastAccessAt = Date.now();
+        // 异步更新访问计数
+        kv.hincrby(`shortlink:${shortId}`, 'accessCount', 1).catch(() => {});
+        kv.hset(`shortlink:${shortId}`, 'lastAccessAt', Date.now()).catch(() => {});
     }
     return link;
 }
 
-// 清理过期链接 (7天未访问)
-function cleanExpiredLinks() {
-    const now = Date.now();
-    const expireTime = 7 * 24 * 60 * 60 * 1000; // 7天
-    
-    for (const [id, link] of linkStore.entries()) {
-        const lastAccess = link.lastAccessAt || link.createdAt;
-        if (now - lastAccess > expireTime) {
-            linkStore.delete(id);
-        }
-    }
-}
-
-// 定期清理 (每小时)
-setInterval(cleanExpiredLinks, 60 * 60 * 1000);
+// KV 自动过期,无需手动清理
 
 module.exports = async (req, res) => {
     const method = req.method;
@@ -61,7 +48,7 @@ module.exports = async (req, res) => {
                 });
             }
 
-            const shortId = createShortLink(apiPath, params || {});
+            const shortId = await createShortLink(apiPath, params || {});
             const shortUrl = `/s/${shortId}`;
 
             return res.status(200).json({
@@ -88,7 +75,7 @@ module.exports = async (req, res) => {
             });
         }
 
-        const link = getShortLink(shortId);
+        const link = await getShortLink(shortId);
 
         if (!link) {
             return res.status(404).json({

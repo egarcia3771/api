@@ -421,6 +421,7 @@
             SINGLE_MAX: 1000,      // 单次最大数量限制
             TOTAL_MAX: 100000,     // 总数量上限（10万）
             STOCK_UPDATE_INTERVAL: 10000, // 库存自动更新间隔（10秒）
+            CONCURRENT_BATCH_SIZE: 5, // 并发批处理大小（每批并发5个请求）
         };
 
         // ===================== 全局状态 =====================
@@ -490,6 +491,27 @@
                 // 其他日志仅在控制台输出（便于调试，不影响页面）
                 console.log(`[${new Date().toLocaleString()}] [${type.toUpperCase()}] ${content}`);
             }
+        }
+
+        /**
+         * 批量日志输出 - 使用 DocumentFragment 减少重绘
+         * @param {Array} items - 日志内容数组
+         * @param {string} type - 日志类型
+         */
+        function logBatch(items, type = 'email') {
+            if (type !== 'email' || !items || items.length === 0) return;
+            
+            const fragment = document.createDocumentFragment();
+            const timestamp = new Date().toLocaleString();
+            
+            items.forEach(content => {
+                const logItem = document.createElement('div');
+                logItem.innerHTML = `<span class="timestamp">[${timestamp}]</span> <span class="success">${escapeHtml(content)}</span>`;
+                fragment.appendChild(logItem);
+            });
+            
+            els.logArea.appendChild(fragment);
+            els.logArea.scrollTop = els.logArea.scrollHeight;
         }
 
         function escapeHtml(html) {
@@ -641,6 +663,28 @@
         }
 
         // ===================== 核心功能函数 =====================
+        /**
+         * 并发批处理函数 - 将多个循环任务并发执行
+         * @param {Array} tasks - 任务数组
+         * @param {Number} batchSize - 每批并发数量
+         */
+        async function processConcurrentBatch(tasks, batchSize = CONFIG.CONCURRENT_BATCH_SIZE) {
+            const results = [];
+            for (let i = 0; i < tasks.length; i += batchSize) {
+                if (!state.isRunning) break;
+                
+                const batch = tasks.slice(i, i + batchSize);
+                const batchResults = await Promise.all(batch.map(task => task()));
+                results.push(...batchResults);
+                
+                // 批次间延时
+                if (i + batchSize < tasks.length && state.cycleDelayMs > 0) {
+                    await delay(state.cycleDelayMs);
+                }
+            }
+            return results;
+        }
+
         async function callBatchEmailApi(config, cycleIndex) {
             let retryCount = 0;
             const { signal } = state.abortController;
@@ -747,24 +791,28 @@
                             if (config.onlyEmailPwd) {
                                 const cycleSimpleData = result.data.map(email => parseOnlyEmailPwd(email));
                                 state.simpleData.push(...cycleSimpleData);
+                                const startCount = state.successCount;
                                 state.successCount += cycleSimpleData.length;
                                 
                                 showError(`【${i}轮】成功获取${cycleSimpleData.length}个（仅账号密码）`);
-                                // 输出邮箱到日志区域（类型设为 'email'）
-                                cycleSimpleData.forEach((item, index) => {
+                                // 批量输出邮箱到日志区域 - 性能优化
+                                const logItems = cycleSimpleData.map((item, index) => {
                                     const [email, pwd] = item.split('----');
-                                    log(`[总${state.successCount}] ${email} | ${pwd}`, 'email');
+                                    return `[总${startCount + index + 1}] ${email} | ${pwd}`;
                                 });
+                                logBatch(logItems, 'email');
                             } else {
                                 const cycleMainData = result.data.map(email => parseFullEmail(email));
                                 state.mainData.push(...cycleMainData);
+                                const startCount = state.successCount;
                                 state.successCount += cycleMainData.length;
                                 
                                 showError(`【${i}轮】成功获取${cycleMainData.length}个`);
-                                // 输出邮箱到日志区域（类型设为 'email'）
-                                cycleMainData.forEach((email, index) => {
-                                    log(`[总${state.successCount}] ${email}`, 'email');
-                                });
+                                // 批量输出邮箱到日志区域 - 性能优化
+                                const logItems = cycleMainData.map((email, index) => 
+                                    `[总${startCount + index + 1}] ${email}`
+                                );
+                                logBatch(logItems, 'email');
                             }
 
                             // 计算本轮失败数量

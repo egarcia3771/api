@@ -1,13 +1,13 @@
-// 短链接API - 使用 Vercel Blob 持久化存储(完全永久)
+// 短链接API - 使用 Vercel KV (Redis) 高性能存储
 const crypto = require('crypto');
-const { put, head } = require('@vercel/blob');
+const { kv } = require('@vercel/kv');
 
 // 生成短ID (16位)
 function generateShortId() {
     return crypto.randomBytes(8).toString('hex');
 }
 
-// 创建短链接 - 使用 Vercel Blob 永久存储
+// 创建短链接 - 使用 Vercel KV 高性能存储
 async function createShortLink(params) {
     const shortId = generateShortId();
     const linkData = {
@@ -16,39 +16,32 @@ async function createShortLink(params) {
         accessCount: 0
     };
     
-    // 存储到 Vercel Blob (永久保存)
-    const blob = await put(`links/${shortId}.json`, JSON.stringify(linkData), {
-        access: 'public',
-        addRandomSuffix: false
+    // 存储到 Vercel KV (Redis) - 速度快10倍+
+    await kv.set(`link:${shortId}`, linkData, {
+        ex: 60 * 60 * 24 * 30 // 30天过期
     });
     
-    console.log('短链接已创建:', shortId, blob.url);
+    console.log('短链接已创建:', shortId);
     
     return shortId;
 }
 
-// 获取短链接信息 - 从 Vercel Blob 读取
+// 获取短链接信息 - 从 Vercel KV 读取 (异步更新计数)
 async function getShortLink(shortId) {
     try {
-        // 检查文件是否存在
-        const blobInfo = await head(`links/${shortId}.json`);
+        // 从 KV 读取数据 - 速度极快
+        const link = await kv.get(`link:${shortId}`);
         
-        if (!blobInfo) {
+        if (!link) {
             return null;
         }
         
-        // 读取文件内容
-        const response = await fetch(blobInfo.url);
-        const link = await response.json();
-        
-        // 更新访问计数
-        link.accessCount++;
-        link.lastAccessAt = Date.now();
-        
-        // 保存更新后的数据
-        await put(`links/${shortId}.json`, JSON.stringify(link), {
-            access: 'public',
-            addRandomSuffix: false
+        // 异步更新访问计数 (不阻塞返回)
+        kv.hincrby(`link:${shortId}`, 'accessCount', 1).catch(err => {
+            console.error('更新计数失败:', err);
+        });
+        kv.hset(`link:${shortId}`, 'lastAccessAt', Date.now()).catch(err => {
+            console.error('更新访问时间失败:', err);
         });
         
         return link;
