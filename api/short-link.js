@@ -15,8 +15,6 @@ async function createShortLink(apiPath, params) {
         params,
         createdAt: Date.now(),
         accessCount: 0
-    }, {
-        ex: 60 * 60 * 24 * 7 // 7天过期
     });
     return shortId;
 }

@@ -16,10 +16,8 @@ async function createShortLink(params) {
         accessCount: 0
     };
     
-    // 存储到 Vercel KV (Redis) - 速度快10倍+
-    await kv.set(`link:${shortId}`, linkData, {
-        ex: 60 * 60 * 24 * 30 // 30天过期
-    });
+    // 存储到 Vercel KV (Redis) - 永久保存
+    await kv.set(`link:${shortId}`, linkData);
     
     console.log('短链接已创建:', shortId);
     
