@@ -357,7 +357,7 @@ test@outlook.com----old_password----abc123-def-4567-8901-ghijklmnopqr----M.C554_
             return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
         }
         
-        // 核心：生成API链接（邮箱不编码）
+        // 核心：生成API链接（邮箱不编码）- 批量并行处理
         async function generateLinks() {
 
             const inputText = elements.dataInput.value.trim();
@@ -375,13 +375,14 @@ test@outlook.com----old_password----abc123-def-4567-8901-ghijklmnopqr----M.C554_
             }
 
             const lines = inputText.split('\n');
-            state.dataList = [];
             const errorLines = [];
+            const validItems = [];
 
             // 显示生成中提示
             elements.generateBtn.disabled = true;
-            elements.generateBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> 生成中...';
+            elements.generateBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> 解析数据中...';
 
+            // 第一步：解析并验证所有数据
             for (let idx = 0; idx < lines.length; idx++) {
                 const line = lines[idx].trim();
                 if (!line) continue;
@@ -393,7 +394,7 @@ test@outlook.com----old_password----abc123-def-4567-8901-ghijklmnopqr----M.C554_
                     continue;
                 }
 
-                // 提取原始数据（保留原始邮箱和原始密码，用于导出）
+                // 提取原始数据
                 const [email, originalPassword, clientId, refreshToken] = parts.map(part => part.trim());
                 
                 if (!email || !originalPassword || !clientId || !refreshToken) {
@@ -401,51 +402,86 @@ test@outlook.com----old_password----abc123-def-4567-8901-ghijklmnopqr----M.C554_
                     continue;
                 }
 
-                // 生成短链接
-                let shortUrl = null;
-                try {
-                    console.log(`正在为 ${email} 生成短链接...`);
-                    const response = await fetch('/api/m', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            refresh_token: refreshToken,
-                            client_id: clientId,
-                            email: email
-                        })
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        shortUrl = window.location.origin + data.shortUrl;
-                        console.log(`✓ 短链接生成成功: ${shortUrl}`);
-                    } else {
-                        console.error(`短链接生成失败 (${response.status}):`, await response.text());
-                    }
-                } catch (error) {
-                    console.error('生成短链接失败:', error);
-                }
+                validItems.push({
+                    email,
+                    originalPassword,
+                    clientId,
+                    refreshToken
+                });
+            }
 
+            if (validItems.length === 0) {
+                alert('没有有效的数据可以生成');
+                elements.generateBtn.disabled = false;
+                elements.generateBtn.innerHTML = '<i class="fa fa-magic mr-1"></i> 生成链接';
+                return;
+            }
+
+            // 第二步：批量生成短链接
+            elements.generateBtn.innerHTML = `<i class="fa fa-spinner fa-spin mr-1"></i> 批量生成中 (0/${validItems.length})...`;
+            
+            let shortUrlMap = {};
+            try {
+                console.log(`开始批量生成 ${validItems.length} 个短链接...`);
+                
+                // 调用批量接口
+                const batchItems = validItems.map(item => ({
+                    refresh_token: item.refreshToken,
+                    client_id: item.clientId,
+                    email: item.email
+                }));
+
+                const response = await fetch('/api/m-batch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ items: batchItems })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log(`✓ 批量生成完成: 成功 ${data.successCount}/${data.total}`);
+                    
+                    // 构建邮箱到短链接的映射
+                    data.results.forEach(result => {
+                        if (result.success && result.shortUrl) {
+                            shortUrlMap[result.email] = window.location.origin + result.shortUrl;
+                        }
+                    });
+                } else {
+                    console.error(`批量生成失败 (${response.status}):`, await response.text());
+                    alert('批量生成短链接失败，将使用备用API链接');
+                }
+            } catch (error) {
+                console.error('批量生成短链接失败:', error);
+                alert('批量生成短链接失败，将使用备用API链接');
+            }
+
+            // 第三步：构建最终数据列表
+            state.dataList = [];
+            validItems.forEach((item, index) => {
                 // 对参数进行URL编码（仅client_id和password，邮箱不编码）
-                const encodedClientId = encodeURIComponent(clientId);
+                const encodedClientId = encodeURIComponent(item.clientId);
                 const encodedCustomPassword = encodeURIComponent(customPassword);
 
                 // 拼接完整API URL（作为备用）
-                const apiUrl = `${API_CONFIG.domain}?refresh_token=${refreshToken}&client_id=${encodedClientId}&email=${email}&mailbox=INBOX&response_type=html`;
+                const apiUrl = `${API_CONFIG.domain}?refresh_token=${item.refreshToken}&client_id=${encodedClientId}&email=${item.email}&mailbox=INBOX&response_type=html`;
 
-                // 存储结果（保留原始邮箱、原始密码，用于导出）
+                // 获取短链接（如果生成成功）
+                const shortUrl = shortUrlMap[item.email] || null;
+
+                // 存储结果
                 state.dataList.push({
-                    id: state.dataList.length + 1,
-                    email: email, // 原始邮箱（未编码，用于导出）
-                    originalPassword: originalPassword, // 原始导入密码（用于导出）
-                    clientId: clientId,
-                    refreshToken: refreshToken,
-                    apiUrl: apiUrl, // 生成的API链接（邮箱未编码）
-                    shortUrl: shortUrl // 短链接
+                    id: index + 1,
+                    email: item.email,
+                    originalPassword: item.originalPassword,
+                    clientId: item.clientId,
+                    refreshToken: item.refreshToken,
+                    apiUrl: apiUrl,
+                    shortUrl: shortUrl
                 });
-            }
+            });
 
             // 恢复按钮状态
             elements.generateBtn.disabled = false;
@@ -454,11 +490,16 @@ test@outlook.com----old_password----abc123-def-4567-8901-ghijklmnopqr----M.C554_
             updateDataTable();
             updateStats();
 
-            if (errorLines.length > 0) {
-                alert(`生成完成，但以下行格式错误（请检查是否为4个字段，用"----"分隔）：\n${errorLines.join(', ')}`);
-            } else {
-                alert(`成功生成 ${state.dataList.length} 条短链接`);
+            // 显示结果
+            const successCount = Object.keys(shortUrlMap).length;
+            let message = `成功生成 ${state.dataList.length} 条数据`;
+            if (successCount > 0) {
+                message += `\n其中 ${successCount} 个短链接生成成功`;
             }
+            if (errorLines.length > 0) {
+                message += `\n\n以下行格式错误（请检查是否为4个字段，用"----"分隔）：\n${errorLines.join(', ')}`;
+            }
+            alert(message);
         }
         
         // 更新数据表格
