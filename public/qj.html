@@ -583,23 +583,109 @@ test@outlook.com----old_password----abc123-def-4567-8901-ghijklmnopqr----M.C554_
             elements.exportBtn.classList.toggle('cursor-not-allowed', elements.exportBtn.disabled);
         }
         
-        // 导出链接 - 格式：邮箱----原始密码----API链接（保持邮箱@不变）
-        function exportLinks() {
-            if (state.dataList.length === 0) return;
+        // 导出API链接 - 完全按照 mail.html 的 exportApiLinks 逻辑
+        async function exportLinks() {
+            if (state.dataList.length === 0) {
+                alert('当前没有数据可导出！');
+                return;
+            }
             
-            // 拼接原始邮箱、原始密码、API链接（均为原始格式，不编码）
-            const content = state.dataList.map(item => `${item.email}----${item.originalPassword}----${item.apiUrl}`).join('\n');
+            // 显示加载动画
+            elements.generateBtn.disabled = true;
+            elements.exportBtn.disabled = true;
+            elements.exportBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> 导出中...';
             
-            const blob = new Blob([content], { type: 'text/plain' });
+            // 分类：已有短链接 vs 需要生成短链接
+            const needGenerate = state.dataList.filter(item => !item.shortUrl);
+            const hasShortUrl = state.dataList.filter(item => item.shortUrl);
+            
+            let generatedCount = hasShortUrl.length;
+            let apiLinks = hasShortUrl.map(item => `${item.email}----${item.shortUrl}`);
+            
+            // 如果有需要生成短链接的数据
+            if (needGenerate.length > 0) {
+                try {
+                    console.log(`需要生成 ${needGenerate.length} 个短链接...`);
+                    
+                    // 分批处理，每批50个
+                    const batchSize = 50;
+                    for (let i = 0; i < needGenerate.length; i += batchSize) {
+                        const batch = needGenerate.slice(i, i + batchSize);
+                        
+                        // 准备批量请求数据
+                        const items = batch.map(item => ({
+                            refresh_token: item.refreshToken,
+                            client_id: item.clientId,
+                            email: item.email
+                        }));
+                        
+                        // 更新进度提示
+                        const progress = Math.min(i + batchSize, needGenerate.length);
+                        elements.exportBtn.innerHTML = `<i class="fa fa-spinner fa-spin mr-1"></i> 批量生成中 (${progress}/${needGenerate.length})...`;
+                        console.log(`批量生成进度: ${progress}/${needGenerate.length}`);
+                        
+                        // 调用批量接口
+                        const response = await fetch('/api/m-batch', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ items })
+                        });
+                        
+                        if (response.ok) {
+                            const result = await response.json();
+                            
+                            // 处理每个结果
+                            result.results.forEach((r, index) => {
+                                const item = batch[index];
+                                if (r.success) {
+                                    const shortUrl = window.location.origin + r.shortUrl;
+                                    // 更新数据中的短链接
+                                    item.shortUrl = shortUrl;
+                                    apiLinks.push(`${item.email}----${shortUrl}`);
+                                    generatedCount++;
+                                } else {
+                                    apiLinks.push(`${item.email}----生成失败`);
+                                }
+                            });
+                        } else {
+                            // 请求失败，标记为生成失败
+                            batch.forEach(item => apiLinks.push(`${item.email}----生成失败`));
+                        }
+                    }
+                } catch (error) {
+                    console.error('批量生成失败:', error);
+                    // 异常情况，标记为生成失败
+                    needGenerate.forEach(item => apiLinks.push(`${item.email}----生成失败`));
+                }
+            }
+            
+            // 恢复按钮状态
+            elements.generateBtn.disabled = false;
+            elements.exportBtn.disabled = false;
+            elements.exportBtn.innerHTML = '<i class="fa fa-download mr-1"></i> 导出链接';
+            
+            if (apiLinks.length === 0) {
+                alert('没有可导出的API链接！');
+                return;
+            }
+            
+            // 导出为TXT文件
+            const txtContent = apiLinks.join('\n');
+            const blob = new Blob([txtContent], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
-            const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            const today = new Date().toLocaleDateString().replace(/\//g, '-');
             const a = document.createElement('a');
             a.href = url;
-            a.download = `邮箱API链接_${today}.txt`;
+            a.download = `API短链接_${today}.txt`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+            
+            // 显示导出结果
+            alert(`导出成功！\n已导出 ${generatedCount} 个短链接\n失败 ${apiLinks.length - generatedCount} 个`);
         }
         
         // 清空所有数据
