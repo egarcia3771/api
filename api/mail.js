@@ -204,6 +204,48 @@ async function graph_api(refresh_token, client_id) {
   }
 }
 
+// 新GR模式：使用 User.Read Mail.Read 专用scope（兜底 .default scope 失败的令牌）
+async function getGraphMailReadToken(refresh_token, client_id) {
+  try {
+    const response = await fetchWithTimeout(CONFIG.OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id,
+        grant_type: 'refresh_token',
+        refresh_token,
+        scope: 'User.Read Mail.Read offline_access'
+      }).toString()
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.access_token || null;
+  } catch (error) {
+    console.error('新GR令牌获取失败：', error);
+    return null;
+  }
+}
+
+// IMAP专用scope获取token（替代无scope的get_access_token，覆盖更多令牌类型）
+async function getImapToken(refresh_token, client_id) {
+  const response = await fetchWithTimeout(CONFIG.OAUTH_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id,
+      grant_type: 'refresh_token',
+      refresh_token,
+      scope: 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access'
+    }).toString()
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`HTTP错误！状态码：${response.status}，响应：${errorText}`);
+  }
+  const data = await response.json();
+  return data.access_token;
+}
+
 // 单个文件夹取件（修改：新增folderSource字段，标识来源）
 async function get_single_folder_email(access_token, mailbox) {
   try {
@@ -372,11 +414,12 @@ module.exports = async (req, res) => {
       });
     }
 
-    console.log("【开始】检查Graph API权限");
+    // 模式1：Graph .default scope
+    console.log("【模式1】检查Graph API权限（.default scope）");
     const graph_api_result = await graph_api(refresh_token, client_id);
 
     if (graph_api_result.status) {
-      console.log("【成功】Graph API权限通过，获取收件箱+垃圾箱最新邮件");
+      console.log("【模式1成功】Graph .default权限通过，获取收件箱+垃圾箱最新邮件");
       const latestEmail = await get_dual_folder_latest_email_graph(graph_api_result.access_token);
 
       if (!latestEmail) {
@@ -394,13 +437,41 @@ module.exports = async (req, res) => {
         return res.status(200).json({
           code: 200,
           message: '邮件获取成功',
-          data: [latestEmail] // JSON响应会包含folderSource字段
+          data: [latestEmail]
         });
       }
     }
 
-    console.log("【降级】Graph API权限不足，使用IMAP获取收件箱+垃圾箱最新邮件");
-    const access_token = await get_access_token(refresh_token, client_id);
+    // 模式2：新GR模式，使用 User.Read Mail.Read 专用scope兜底
+    console.log("【模式2】尝试新GR模式（User.Read Mail.Read scope）");
+    const grToken = await getGraphMailReadToken(refresh_token, client_id);
+    if (grToken) {
+      console.log("【模式2成功】新GR token获取成功，使用Graph API获取邮件");
+      const latestEmail = await get_dual_folder_latest_email_graph(grToken);
+
+      if (!latestEmail) {
+        return res.status(200).json({
+          code: 2001,
+          message: "收件箱和垃圾箱均无邮件",
+          data: null
+        });
+      }
+
+      if (response_type === 'html') {
+        const htmlResponse = generateEmailHtml(latestEmail);
+        return res.status(200).send(htmlResponse);
+      } else {
+        return res.status(200).json({
+          code: 200,
+          message: '邮件获取成功',
+          data: [latestEmail]
+        });
+      }
+    }
+
+    // 模式3：IMAP，使用专用 IMAP.AccessAsUser.All scope
+    console.log("【模式3】使用IMAP模式（IMAP.AccessAsUser.All scope）");
+    const access_token = await getImapToken(refresh_token, client_id);
     const authString = generateAuthString(email, access_token);
     const imapConfig = { ...CONFIG.IMAP_CONFIG, user: email, xoauth2: authString };
 

@@ -7,24 +7,40 @@ function generateShortId() {
     return crypto.randomBytes(8).toString('hex');
 }
 
-// 批量创建短链接
+// 批量创建短链接（同一邮箱已有短链则复用，不重复创建）
 async function createShortLinksBatch(items) {
     const results = await Promise.all(items.map(async (params) => {
         try {
+            // 先查该邮箱是否已有短链接
+            const existingShortId = await kv.get(`email_link:${params.email}`);
+            if (existingShortId) {
+                return {
+                    success: true,
+                    shortId: existingShortId,
+                    email: params.email,
+                    reused: true
+                };
+            }
+
+            // 没有则新建
             const shortId = generateShortId();
             const linkData = {
                 params,
                 createdAt: Date.now(),
                 accessCount: 0
             };
-            
-            // 存储到 Vercel KV - 永久保存
-            await kv.set(`link:${shortId}`, linkData);
-            
+
+            // 同时存储链接数据和 email→shortId 映射
+            await Promise.all([
+                kv.set(`link:${shortId}`, linkData),
+                kv.set(`email_link:${params.email}`, shortId)
+            ]);
+
             return {
                 success: true,
                 shortId,
-                email: params.email
+                email: params.email,
+                reused: false
             };
         } catch (error) {
             return {
@@ -34,7 +50,7 @@ async function createShortLinksBatch(items) {
             };
         }
     }));
-    
+
     return results;
 }
 
